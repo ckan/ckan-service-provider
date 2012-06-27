@@ -5,10 +5,12 @@ import time
 
 import requests
 import ckanserviceprototype.web as web
-os.environ['JOB_CONFIG'] = 'test.ini'
+os.environ['JOB_CONFIG'] = os.path.join(os.path.dirname(__file__), 'test.ini')
+
+print os.environ['JOB_CONFIG']
 
 try:
-    os.remove('/tmp/datastorer_tasks.db')
+    os.remove('/tmp/job_store.db')
 except OSError:
     pass
 web.configure()
@@ -33,7 +35,7 @@ class TestWeb():
     @classmethod
     def teardown_class(cls):
         cls.fake_ckan.kill()
-        
+
     def test_status(self):
         rv = app.get('/status')
         assert json.loads(rv.data) == dict(version=0.1,
@@ -41,9 +43,9 @@ class TestWeb():
                                            name='datastorer')
 
     def test_bad_post(self):
-        
+
         rv = app.post('/job', data='{"ffsfsafsa":"moo"}')
-        assert json.loads(rv.data) == {u'error': u'Not recognised as json, make sure content type is application/json'}, json.loads(rv.data) 
+        assert json.loads(rv.data) == {u'error': u'Not recognised as json, make sure content type is application/json'}, json.loads(rv.data)
 
         rv = app.post('/job',
                       data='{"ffsfsafsa":moo}',
@@ -67,7 +69,7 @@ class TestWeb():
                       data=json.dumps({"job_type": "example", "data": {"time": 0.1}}),
                       content_type='application/json')
 
-        assert 'job_id' in json.loads(rv.data) 
+        assert 'job_id' in json.loads(rv.data)
 
 
         # good job with name
@@ -200,3 +202,21 @@ class TestWeb():
         assert rv.status_code == 404, rv.status
         error = json.loads(rv.data)
         assert error == {u'error': u'job_id not found'}
+
+    def test_z_misfire(self):
+        web.scheduler.misfire_grace_time = 0.000001
+        rv = app.post(
+            '/job/misfire',
+            data=json.dumps({"job_type": "example",
+                             "data": {"time": 0.1},
+                             "metadata": "meta",
+                             }),
+            content_type='application/json')
+
+        time.sleep(0.5)
+
+        rv = app.get('/job/misfire')
+        job_status_data = json.loads(rv.data)
+        job_status_data.pop('requested_timestamp')
+        job_status_data.pop('finished_timestamp')
+        assert job_status_data == {u'status': u'error', u'sent_data': {u'time': 0.1}, u'job_id': u'misfire', u'job_type': u'example', u'result_url': None, u'error': u'Job delayed too long, service full', u'data': None, u'metadata': u'meta'}, job_status_data

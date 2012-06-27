@@ -37,9 +37,25 @@ def configure():
         raise Exception('No db_url in config')
     db.setup_db(db_url)
     scheduler.add_listener(job_listener,
-                           events.EVENT_JOB_EXECUTED | 
-                           events.EVENT_JOB_MISSED | 
+                           events.EVENT_JOB_EXECUTED |
+                           events.EVENT_JOB_MISSED |
                            events.EVENT_JOB_ERROR)
+
+class RunNowTrigger(object):
+    def __init__(self):
+        self.run = False
+
+    def get_next_fire_time(self, start_date):
+        if not self.run:
+            self.run = True
+            return datetime.datetime.now()
+
+    def __str__(self):
+        return 'RunTriggerNow, run = %s' % self.run
+
+    def __repr__(self):
+        return 'RunTriggerNow, run = %s' % self.run
+
 
 
 def job_listener(event):
@@ -47,13 +63,17 @@ def job_listener(event):
     job_id = event.job.args[0]
     update_dict = {'finished_timestamp': datetime.datetime.now()}
 
-    if event.exception:
+    if event.code == events.EVENT_JOB_MISSED:
+        update_dict['status'] = 'error'
+        update_dict['error'] = json.dumps(
+            'Job delayed too long, service full')
+    elif event.exception:
         update_dict['status'] = 'error'
         if isinstance(event.exception, util.JobError):
             update_dict['error'] = json.dumps(event.exception.message)
         else:
             update_dict['error'] =\
-                    json.dumps('\n'.join(traceback.format_tb(event.traceback)) 
+                    json.dumps('\n'.join(traceback.format_tb(event.traceback))
                                + repr(event.exception))
     else:
         update_dict['status'] = 'complete'
@@ -139,8 +159,9 @@ def run_asyncronous_job(job, job_id, input):
     except sa.exc.IntegrityError, e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
-        
-    scheduler.add_date_job(job, exec_date, [job_id, input])
+
+    scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
+
     return flask.jsonify(job_id=job_id)
 
 
@@ -179,12 +200,12 @@ def send_result(job_id):
             header, key = 'Authorization', api_key
         headers[header] = key
 
-    result = requests.post(result_url, 
-                           data=json.dumps(job_status), 
+    result = requests.post(result_url,
+                           data=json.dumps(job_status),
                            headers=headers)
 
     return result.status_code == requests.codes.ok
-    
+
 def get_job_status(job_id):
     result_dict = {}
     result = db.engine.execute(db.task_table.select()
@@ -204,7 +225,7 @@ def get_job_status(job_id):
         else:
             result_dict[field] = unicode(value)
     return result_dict
-         
+
 if __name__ == "__main__":
     configure()
     app.run()
