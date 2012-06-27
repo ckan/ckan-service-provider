@@ -1,0 +1,6 @@
+syntax: glob
+# generic
+*.pyc
+*.swp
+*.swo
+ckan_service_prototype.egg-info/*
