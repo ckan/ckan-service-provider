@@ -5,17 +5,33 @@ import time
 
 import requests
 import ckanserviceprototype.web as web
+import ckanserviceprototype.job as job
+import ckanserviceprototype.util as util
 os.environ['JOB_CONFIG'] = os.path.join(os.path.dirname(__file__), 'test.ini')
-
-print os.environ['JOB_CONFIG']
 
 try:
     os.remove('/tmp/job_store.db')
 except OSError:
     pass
 web.configure()
-
 app = web.app.test_client()
+
+
+@job.sync
+def echo(task_id, input):
+    if input['data'].startswith('>'):
+        raise util.JobError('do not start message with >')
+    return '>' + input['data']
+
+@job.async
+def example(task_id, input):
+    if 'time' not in input['data']:
+        raise util.JobError('time not in input')
+
+    time.sleep(input['data']['time'])
+    return 'Slept for '+ str(input['data']['time']) + ' seconds.'
+
+
 class TestWeb():
 
     @classmethod
@@ -39,8 +55,8 @@ class TestWeb():
     def test_status(self):
         rv = app.get('/status')
         assert json.loads(rv.data) == dict(version=0.1,
-                                           job_types=['example'],
-                                           name='datastorer')
+                                           job_types=['example', 'echo'],
+                                           name='example')
 
     def test_bad_post(self):
 
@@ -60,7 +76,7 @@ class TestWeb():
         rv = app.post('/job',
                       data=json.dumps({"job_type": "moo", "data": {"time": 5}}),
                       content_type='application/json')
-        assert json.loads(rv.data) == {u'error': u'Job type moo not availiable. Availible job types are example'}, json.loads(rv.data)
+        assert json.loads(rv.data) == {u'error': u'Job type moo not availiable. Availible job types are example, echo'}, json.loads(rv.data)
 
     def test_asyncronous_post(self):
 
@@ -83,7 +99,7 @@ class TestWeb():
 
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
-        assert job_status_data == { u'status': u'pending', u'sent_data': {"time": 0.1}, u'job_id': u'moo', u'finished_timestamp': None, u'job_type': u'example', u'error': None, u'data': None, u'metadata': None, 'result_url': None}, job_status_data
+        assert job_status_data == { u'status': u'pending', u'sent_data': {"time": 0.1}, u'job_id': u'moo', u'finished_timestamp': None, u'job_type': u'example', u'error': None, u'data': None, u'metadata': {}, 'result_url': None}, job_status_data
 
 
         # bad job with same name
@@ -115,14 +131,14 @@ class TestWeb():
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'complete', u'sent_data': {"time": 0.1}, u'job_id': u'moo', u'job_type': u'example', u'error': None, u'data': u'Slept for 0.1 seconds.', u'metadata': None, 'result_url': None}, job_status_data
+        assert job_status_data == {u'status': u'complete', u'sent_data': {"time": 0.1}, u'job_id': u'moo', u'job_type': u'example', u'error': None, u'data': u'Slept for 0.1 seconds.', u'metadata': {}, 'result_url': None}, job_status_data
 
         # job with known error
         rv = app.get('/job/missing_time')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'error', u'sent_data': {}, u'job_id': u'missing_time', u'job_type': u'example', u'error': u'time not in input', u'data': None, u'metadata': None, 'result_url': None}, job_status_data
+        assert job_status_data == {u'status': u'error', u'sent_data': {}, u'job_id': u'missing_time', u'job_type': u'example', u'error': u'time not in input', u'data': None, u'metadata': {}, 'result_url': None}, job_status_data
 
         # job with unexpected error
         rv = app.get('/job/exception')
@@ -130,7 +146,7 @@ class TestWeb():
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
         error = job_status_data.pop('error')
-        assert job_status_data == {u'status': u'error', u'sent_data': {"time": "not_a_time"}, u'job_id': u'exception', u'job_type': u'example', u'data': None, u'metadata': None, 'result_url': None}, job_status_data
+        assert job_status_data == {u'status': u'error', u'sent_data': {"time": "not_a_time"}, u'job_id': u'exception', u'job_type': u'example', u'data': None, u'metadata': {}, 'result_url': None}, job_status_data
         assert 'TypeError' in error
 
     def test_asyncronous_post_with_return_url(self):
@@ -139,7 +155,7 @@ class TestWeb():
             '/job/with_result',
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
-                             "metadata": "meta",
+                             "metadata": {'key': 'value'},
                              "result_url": "http://0.0.0.0:50001/result",
                              "api_key": "header:key"}),
             content_type='application/json')
@@ -149,7 +165,7 @@ class TestWeb():
             '/job/with_bad_result',
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
-                             "metadata": "meta",
+                             "metadata": {'key': 'value'},
                              "result_url": "http://0.0.0.0:50001/resul",
                              "api_key": "key"}),
             content_type='application/json')
@@ -160,14 +176,14 @@ class TestWeb():
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_bad_result', u'job_type': u'example', u'error': u'Process completed but unable to post to result_url', u'data': u'Slept for 0.1 seconds.', u'metadata': u'meta', 'result_url': "http://0.0.0.0:50001/resul"}, job_status_data
+        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_bad_result', u'job_type': u'example', u'error': u'Process completed but unable to post to result_url', u'data': u'Slept for 0.1 seconds.', u'metadata': {'key': 'value'}, 'result_url': "http://0.0.0.0:50001/resul"}, job_status_data
 
 
         rv = app.get('/job/with_result')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_result', u'job_type': u'example', u'error': None, u'data': u'Slept for 0.1 seconds.', u'metadata': u'meta', 'result_url': "http://0.0.0.0:50001/result"}, job_status_data
+        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_result', u'job_type': u'example', u'error': None, u'data': u'Slept for 0.1 seconds.', u'metadata': {'key': 'value'}, 'result_url': "http://0.0.0.0:50001/result"}, job_status_data
 
         last_request = json.loads(requests.get('http://0.0.0.0:50001/last_request').content)
         last_request['data'].pop('requested_timestamp')
@@ -175,7 +191,7 @@ class TestWeb():
 
         assert last_request == {
                   "headers": {
-                    "Content-Length": "317",
+                    "Content-Length": "327",
                     "Accept-Encoding": "gzip",
                     "Connection": "close",
                     "User-Agent": "python-requests.org",
@@ -193,7 +209,7 @@ class TestWeb():
                     "result_url": "http://0.0.0.0:50001/result",
                     "error": None,
                     "data": "Slept for 0.1 seconds.",
-                    "metadata": "meta"
+                    "metadata": {'key': 'value'}
                   }
                 }, last_request
 
@@ -203,13 +219,42 @@ class TestWeb():
         error = json.loads(rv.data)
         assert error == {u'error': u'job_id not found'}
 
-    def test_z_misfire(self):
+    def test_bad_metadata(self):
+        rv = app.post(
+            '/job/with_bad_metadata',
+            data=json.dumps({"job_type": "example",
+                             "data": {"time": 0.1},
+                             "metadata": "meta",
+                             "result_url": "http//0.0.0.0:50001/result",
+                             "api_key": "key"}),
+            content_type='application/json')
+
+        return_value = json.loads(rv.data)
+        assert return_value == {u'error': u'metadata has to be a json object'}, return_value
+
+    def test_bad_url(self):
+        rv = app.post(
+            '/job/with_bad_result',
+            data=json.dumps({"job_type": "example",
+                             "data": {"time": 0.1},
+                             "metadata": "meta",
+                             "result_url": "ht//0.0.0.0:50001/resul",
+                             "api_key": "key"}),
+            content_type='application/json')
+
+        return_value = json.loads(rv.data)
+        assert return_value == {u'error': u'result_url has to start with http'}, return_value
+
+
+    def test_zz_misfire(self):
+        #has z because if this test failes will cause other tests to fail'''
+        
         web.scheduler.misfire_grace_time = 0.000001
         rv = app.post(
             '/job/misfire',
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
-                             "metadata": "meta",
+                             "metadata": {"moon": "moon", "nested" : {"nested": "nested"}, "key": "value"},
                              }),
             content_type='application/json')
 
@@ -219,4 +264,87 @@ class TestWeb():
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'error', u'sent_data': {u'time': 0.1}, u'job_id': u'misfire', u'job_type': u'example', u'result_url': None, u'error': u'Job delayed too long, service full', u'data': None, u'metadata': u'meta'}, job_status_data
+        assert job_status_data == {u'status': u'error', u'sent_data': {u'time': 0.1}, u'job_id': u'misfire', u'job_type': u'example', u'result_url': None, u'error': u'Job delayed too long, service full', u'data': None, u'metadata': {"key": "value", "moon": "moon", "nested" : {"nested": "nested"}}}, job_status_data
+        web.scheduler.misfire_grace_time = 3600 
+
+    def test_syncronous_post(self):
+
+        rv = app.post('/job/echobasic',
+                      data=json.dumps({"metadata": {"key":"value", "moo":"moo"}, "job_type": "echo", "data": "ping"}),
+                      content_type='application/json')
+
+        return_data = json.loads(rv.data)
+        return_data.pop('requested_timestamp')
+        return_data.pop('finished_timestamp')
+
+        assert return_data == {u'status': u'complete', u'sent_data': u'ping', u'job_id': u'echobasic', u'job_type': u'echo', u'result_url': None, u'error': None, u'data': u'>ping', u'metadata': {"key":"value", "moo":"moo"}}, return_data
+
+        rv = app.get('/job/echobasic')
+        job_status_data = json.loads(rv.data)
+        job_status_data.pop('requested_timestamp')
+        job_status_data.pop('finished_timestamp')
+
+        assert return_data == job_status_data
+
+        rv = app.post('/job/echobasic',
+                      data=json.dumps({"job_type": "echo", "data": "ping"}),
+                      content_type='application/json')
+
+        return_data = json.loads(rv.data)
+        assert return_data == {u'error': u'job_id echobasic already exists'}, return_data
+
+        rv = app.post('/job/echoknownbad',
+                      data=json.dumps({"job_type": "echo", "data": ">ping"}),
+                      content_type='application/json')
+        return_data = json.loads(rv.data)
+        return_data.pop('requested_timestamp')
+        return_data.pop('finished_timestamp')
+        assert return_data == {u'status': u'error', u'sent_data': u'>ping', u'job_id': u'echoknownbad', u'job_type': u'echo', u'result_url': None, u'error': u'do not start message with >', u'data': None, u'metadata': {}}, return_data
+
+
+        rv = app.post('/job/echounknownbad',
+                      data=json.dumps({"job_type": "echo", "data": 1}),
+                      content_type='application/json')
+        return_data = json.loads(rv.data)
+        assert 'AttributeError' in return_data['error']
+
+        rv = app.post('/job/echobad_url',
+                      data=json.dumps({"job_type": "echo", "data": "moo", "result_url": "http://bad_url" }),
+                      content_type='application/json')
+        return_data = json.loads(rv.data)
+        return_data.pop('requested_timestamp')
+        return_data.pop('finished_timestamp')
+        assert return_data == {u'status': u'complete', u'sent_data': u'moo', u'job_id': u'echobad_url', u'job_type': u'echo', u'result_url': u'http://bad_url', u'error': u'Process completed but unable to post to result_url', u'data': u'>moo', u'metadata': {}}, return_data
+
+    def test_z_test_list(self):
+        #has z because needs some data to be useful
+
+        rv = app.get('/job')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 10,  return_data['list']
+
+        rv = app.get('/job?_limit=1')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 1,  return_data['list']
+
+        rv = app.get('/job?_status=complete')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 6,  return_data['list']
+
+        rv = app.get('/job?key=value')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 3,  return_data['list']
+        
+        rv = app.get('/job?key=value&moo=moo')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 1,  return_data['list']
+
+        rv = app.get('/job?key=value&moo=moo&moon=moon')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 0,  return_data['list']
+        
+        rv = app.get('/job?key=value&moon=moon')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 0,  return_data['list']
+
+
