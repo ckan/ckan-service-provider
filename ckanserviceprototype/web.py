@@ -112,7 +112,7 @@ def job_list():
     select = sql.select(
        [db.task_table.c.job_id],
          from_obj=[db.task_table.outerjoin(
-             db.metadata_table, 
+             db.metadata_table,
              db.task_table.c.job_id == db.metadata_table.c.job_id)
         ]).\
         group_by(db.task_table.c.job_id).\
@@ -303,9 +303,12 @@ def send_result(job_id):
             header, key = 'Authorization', api_key
         headers[header] = key
 
-    result = requests.post(result_url,
-                           data=json.dumps(job_status),
-                           headers=headers)
+    try:
+        result = requests.post(result_url,
+                               data=json.dumps(job_status),
+                               headers=headers)
+    except requests.ConnectionError as conne:
+        return False
 
     return result.status_code == requests.codes.ok
 

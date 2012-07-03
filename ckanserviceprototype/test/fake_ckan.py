@@ -3,9 +3,7 @@ import os
 
 app = Flask(__name__,
             static_folder=os.path.join(os.path.dirname(
-                os.path.realpath( __file__ )),
-                                       "static")
-           )
+                os.path.realpath( __file__ )), "static") )
 
 request_store = []
 
@@ -37,5 +35,5 @@ def ok():
     return 'ok'
 
 if __name__ == "__main__":
-    app.run(port=50001)
+    app.run(port=9091)
 

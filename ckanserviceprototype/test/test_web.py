@@ -39,17 +39,19 @@ class TestWeb():
         fake_ckan_path = os.path.join(os.path.dirname(__file__), "fake_ckan.py")
         cls.fake_ckan = subprocess.Popen(['python', fake_ckan_path])
         #make sure service is running
-        for i in range(0,50):
+        for i in range(0,10):
             time.sleep(0.1)
-            response1 = requests.get('http://0.0.0.0:50001')
+            response1 = requests.get('http://0.0.0.0:9091/')
             if not response1:
                 continue
+            print "Launched"
             return
-        cls.teardown_class()
+        cls.fake_ckan.kill()
         raise Exception('services did not start!')
 
     @classmethod
     def teardown_class(cls):
+        print "Killing"
         cls.fake_ckan.kill()
 
     def test_status(self):
@@ -156,7 +158,7 @@ class TestWeb():
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
                              "metadata": {'key': 'value'},
-                             "result_url": "http://0.0.0.0:50001/result",
+                             "result_url": "http://0.0.0.0:9091/result",
                              "api_key": "header:key"}),
             content_type='application/json')
 
@@ -166,7 +168,7 @@ class TestWeb():
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
                              "metadata": {'key': 'value'},
-                             "result_url": "http://0.0.0.0:50001/resul",
+                             "result_url": "http://0.0.0.0:9091/resul",
                              "api_key": "key"}),
             content_type='application/json')
 
@@ -176,29 +178,29 @@ class TestWeb():
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_bad_result', u'job_type': u'example', u'error': u'Process completed but unable to post to result_url', u'data': u'Slept for 0.1 seconds.', u'metadata': {'key': 'value'}, 'result_url': "http://0.0.0.0:50001/resul"}, job_status_data
+        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_bad_result', u'job_type': u'example', u'error': u'Process completed but unable to post to result_url', u'data': u'Slept for 0.1 seconds.', u'metadata': {'key': 'value'}, 'result_url': "http://0.0.0.0:9091/resul"}, job_status_data
 
 
         rv = app.get('/job/with_result')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_result', u'job_type': u'example', u'error': None, u'data': u'Slept for 0.1 seconds.', u'metadata': {'key': 'value'}, 'result_url': "http://0.0.0.0:50001/result"}, job_status_data
+        assert job_status_data == {u'status': u'complete', u'sent_data': {u'time': 0.1}, u'job_id': u'with_result', u'job_type': u'example', u'error': None, u'data': u'Slept for 0.1 seconds.', u'metadata': {'key': 'value'}, 'result_url': "http://0.0.0.0:9091/result"}, job_status_data
 
-        last_request = json.loads(requests.get('http://0.0.0.0:50001/last_request').content)
+        last_request = json.loads(requests.get('http://0.0.0.0:9091/last_request').content)
         last_request['data'].pop('requested_timestamp')
         last_request['data'].pop('finished_timestamp')
 
         assert last_request == {
                   "headers": {
-                    "Content-Length": "327",
-                    "Accept-Encoding": "gzip",
-                    "Connection": "close",
-                    "User-Agent": "python-requests.org",
-                    "Host": "0.0.0.0:50001",
-                    "Content-Type": "application/json",
-                    "Header": "key"
-                  },
+                    "Content-Length": "326",
+                    "Accept-Encoding": u"identity, deflate, compress, gzip",
+                    u'Accept': u'*/*',
+                    u'User-Agent': u'python-requests/0.13.2',
+                    u'Header': u'key',
+                    u'Host': u'0.0.0.0:9091',
+                    u'Content-Type': u'application/json'
+                   },
                   "data": {
                     "status": "complete",
                     "sent_data": {
@@ -206,7 +208,7 @@ class TestWeb():
                     },
                     "job_id": "with_result",
                     "job_type": "example",
-                    "result_url": "http://0.0.0.0:50001/result",
+                    "result_url": "http://0.0.0.0:9091/result",
                     "error": None,
                     "data": "Slept for 0.1 seconds.",
                     "metadata": {'key': 'value'}
@@ -225,7 +227,7 @@ class TestWeb():
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
                              "metadata": "meta",
-                             "result_url": "http//0.0.0.0:50001/result",
+                             "result_url": "http//0.0.0.0:9091/result",
                              "api_key": "key"}),
             content_type='application/json')
 
@@ -238,7 +240,7 @@ class TestWeb():
             data=json.dumps({"job_type": "example",
                              "data": {"time": 0.1},
                              "metadata": "meta",
-                             "result_url": "ht//0.0.0.0:50001/resul",
+                             "result_url": "ht//0.0.0.0:9091/resul",
                              "api_key": "key"}),
             content_type='application/json')
 
@@ -248,7 +250,7 @@ class TestWeb():
 
     def test_zz_misfire(self):
         #has z because if this test failes will cause other tests to fail'''
-        
+
         web.scheduler.misfire_grace_time = 0.000001
         rv = app.post(
             '/job/misfire',
@@ -265,7 +267,7 @@ class TestWeb():
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
         assert job_status_data == {u'status': u'error', u'sent_data': {u'time': 0.1}, u'job_id': u'misfire', u'job_type': u'example', u'result_url': None, u'error': u'Job delayed too long, service full', u'data': None, u'metadata': {"key": "value", "moon": "moon", "nested" : {"nested": "nested"}}}, job_status_data
-        web.scheduler.misfire_grace_time = 3600 
+        web.scheduler.misfire_grace_time = 3600
 
     def test_syncronous_post(self):
 
@@ -334,7 +336,7 @@ class TestWeb():
         rv = app.get('/job?key=value')
         return_data = json.loads(rv.data)
         assert len(return_data['list']) == 3,  return_data['list']
-        
+
         rv = app.get('/job?key=value&moo=moo')
         return_data = json.loads(rv.data)
         assert len(return_data['list']) == 1,  return_data['list']
@@ -342,7 +344,7 @@ class TestWeb():
         rv = app.get('/job?key=value&moo=moo&moon=moon')
         return_data = json.loads(rv.data)
         assert len(return_data['list']) == 0,  return_data['list']
-        
+
         rv = app.get('/job?key=value&moon=moon')
         return_data = json.loads(rv.data)
         assert len(return_data['list']) == 0,  return_data['list']
