@@ -37,21 +37,19 @@ class TestWeb():
     @classmethod
     def setup_class(cls):
         fake_ckan_path = os.path.join(os.path.dirname(__file__), "fake_ckan.py")
-        cls.fake_ckan = subprocess.Popen(['python', fake_ckan_path])
+        cls.fake_ckan = subprocess.Popen(['python', fake_ckan_path], shell=False)
         #make sure service is running
         for i in range(0,10):
-            time.sleep(0.1)
+            time.sleep(1)
             response1 = requests.get('http://0.0.0.0:9091/')
             if not response1:
                 continue
-            print "Launched"
             return
         cls.fake_ckan.kill()
         raise Exception('services did not start!')
 
     @classmethod
     def teardown_class(cls):
-        print "Killing"
         cls.fake_ckan.kill()
 
     def test_status(self):

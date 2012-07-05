@@ -95,7 +95,7 @@ def job_listener(event):
 headers = {'Content-Type': 'aplication/json'}
 
 @app.route("/status", methods=['GET'])
-def stutus():
+def status():
     job_types = async_types.keys() + sync_types.keys()
     return flask.jsonify(
         version=0.1,
