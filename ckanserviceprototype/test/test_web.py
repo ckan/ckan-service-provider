@@ -31,7 +31,7 @@ def echo_raw(task_id, input):
         raise util.JobError('do not start message with >')
 
     def raw():
-        for x in str(input['data']):
+        for x in sorted(input['data']):
             yield x
 
     return raw
@@ -356,6 +356,19 @@ class TestWeb():
             job_status_data
         web.scheduler.misfire_grace_time = 3600
 
+    def test_syncronous__raw_post(self):
+
+        rv = app.post('/job/echoraw',
+                      data=json.dumps({"metadata": {"key": "value",
+                                                    "moo": "moo"},
+                                       "job_type": "echo_raw",
+                                       "data": "ping"}),
+                      content_type='application/json')
+
+        print '*-' * 50
+        print rv.data
+        print '*-' * 50
+
     def test_syncronous_post(self):
 
         rv = app.post('/job/echobasic',
@@ -437,7 +450,7 @@ class TestWeb():
 
         rv = app.get('/job')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 10,  return_data['list']
+        assert len(return_data['list']) == 11,  return_data['list']
 
         rv = app.get('/job?_limit=1')
         return_data = json.loads(rv.data)
@@ -445,15 +458,15 @@ class TestWeb():
 
         rv = app.get('/job?_status=complete')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 6,  return_data['list']
+        assert len(return_data['list']) == 7,  return_data['list']
 
         rv = app.get('/job?key=value')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 3,  return_data['list']
+        assert len(return_data['list']) == 4,  return_data['list']
 
         rv = app.get('/job?key=value&moo=moo')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 1,  return_data['list']
+        assert len(return_data['list']) == 2,  return_data['list']
 
         rv = app.get('/job?key=value&moo=moo&moon=moon')
         return_data = json.loads(rv.data)

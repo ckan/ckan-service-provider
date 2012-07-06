@@ -216,6 +216,11 @@ def run_syncronous_job(job, job_id, input):
     try:
         result = job(job_id, input)
         update_dict['status'] = 'complete'
+
+        if hasattr(result, "__call__"):
+            update_job(job_id, update_dict)
+            return flask.Response(result(), mimetype='application/json')
+
         update_dict['data'] = json.dumps(result)
     except util.JobError, e:
         update_dict['status'] = 'error'
