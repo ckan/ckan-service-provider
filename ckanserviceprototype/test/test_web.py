@@ -23,6 +23,18 @@ def echo(task_id, input):
         raise util.JobError('do not start message with >')
     return '>' + input['data']
 
+@job.sync
+def echo_raw(task_id, input):
+    if input['data'].startswith('>'):
+        raise util.JobError('do not start message with >')
+
+    def raw():
+        for x in str(input['data']):
+            yield x
+
+    return raw
+
+
 @job.async
 def example(task_id, input):
     if 'time' not in input['data']:
@@ -55,8 +67,8 @@ class TestWeb():
     def test_status(self):
         rv = app.get('/status')
         assert json.loads(rv.data) == dict(version=0.1,
-                                           job_types=['example', 'echo'],
-                                           name='example')
+                                           job_types=['example', 'echo_raw', 'echo'],
+                                           name='example'), rv.data
 
     def test_bad_post(self):
 
@@ -76,7 +88,7 @@ class TestWeb():
         rv = app.post('/job',
                       data=json.dumps({"job_type": "moo", "data": {"time": 5}}),
                       content_type='application/json')
-        assert json.loads(rv.data) == {u'error': u'Job type moo not availiable. Availible job types are example, echo'}, json.loads(rv.data)
+        assert json.loads(rv.data) == {u'error': u'Job type moo not available. Available job types are example, echo_raw, echo'}, json.loads(rv.data)
 
     def test_asyncronous_post(self):
 

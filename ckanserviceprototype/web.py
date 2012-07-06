@@ -182,7 +182,7 @@ def job(job_id=None):
 
     if job_type not in job_types:
         error_string = (
-            'Job type {} not availiable. Availible job types are {}'
+            'Job type {} not available. Available job types are {}'
         ).format(job_type, ', '.join(job_types))
         return json.dumps({"error": error_string}), 409, headers
 
