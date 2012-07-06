@@ -364,10 +364,7 @@ class TestWeb():
                                        "job_type": "echo_raw",
                                        "data": "ping"}),
                       content_type='application/json')
-
-        print '*-' * 50
-        print rv.data
-        print '*-' * 50
+        assert rv.data == 'ginp'
 
     def test_syncronous_post(self):
 
