@@ -25,6 +25,7 @@ scheduler = apscheduler.Scheduler()
 #Allow a day for jobs to be run otherwise drop them. Should rerun these later.
 scheduler.misfire_grace_time = 3600
 
+
 def configure():
     config = ConfigParser.ConfigParser()
     config_file = os.environ.get('JOB_CONFIG')
@@ -42,6 +43,7 @@ def configure():
                            events.EVENT_JOB_EXECUTED |
                            events.EVENT_JOB_MISSED |
                            events.EVENT_JOB_ERROR)
+
 
 class RunNowTrigger(object):
     ''' custom apsceduler trigger to run job once and only
@@ -61,7 +63,6 @@ class RunNowTrigger(object):
         return 'RunTriggerNow, run = %s' % self.run
 
 
-
 def job_listener(event):
     '''listens to completed job'''
     job_id = event.job.args[0]
@@ -76,9 +77,10 @@ def job_listener(event):
         if isinstance(event.exception, util.JobError):
             update_dict['error'] = json.dumps(event.exception.message)
         else:
-            update_dict['error'] =\
-                    json.dumps('\n'.join(traceback.format_tb(event.traceback))
-                               + repr(event.exception))
+            update_dict['error'] = \
+                json.dumps('\n'.join(traceback.format_tb(event.traceback))
+                           +
+                           repr(event.exception))
     else:
         update_dict['status'] = 'complete'
         update_dict['data'] = json.dumps(event.retval)
@@ -88,11 +90,13 @@ def job_listener(event):
 
     if not result_ok:
         ## TODO this clobbers original error
-        update_dict['error'] = json.dumps('Process completed but unable to post to result_url')
+        update_dict['error'] = json.dumps(
+            'Process completed but unable to post to result_url')
         update_job(job_id, update_dict)
 
 
 headers = {'Content-Type': 'aplication/json'}
+
 
 @app.route("/status", methods=['GET'])
 def status():
@@ -103,6 +107,7 @@ def status():
         name='example'
     )
 
+
 @app.route("/job", methods=['GET'])
 def job_list():
     args = dict((key, value) for key, value in flask.request.args.items())
@@ -110,10 +115,10 @@ def job_list():
     offset = args.pop('_offset', 0)
 
     select = sql.select(
-       [db.task_table.c.job_id],
-         from_obj=[db.task_table.outerjoin(
-             db.metadata_table,
-             db.task_table.c.job_id == db.metadata_table.c.job_id)
+        [db.task_table.c.job_id],
+        from_obj=[db.task_table.outerjoin(
+            db.metadata_table,
+            db.task_table.c.job_id == db.metadata_table.c.job_id)
         ]).\
         group_by(db.task_table.c.job_id).\
         order_by(db.task_table.c.requested_timestamp.desc()).\
@@ -142,7 +147,6 @@ def job_list():
     return flask.jsonify(list=listing)
 
 
-
 @app.route("/job/<job_id>", methods=['GET'])
 def job_status(job_id):
     job_status = get_job_status(job_id)
@@ -150,6 +154,7 @@ def job_status(job_id):
         return json.dumps({'error': 'job_id not found'}), 404, headers
     job_status.pop('api_key', None)
     return json.dumps(job_status), 200, headers
+
 
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
@@ -164,15 +169,15 @@ def job(job_id=None):
         return json.dumps({"error": "Malformed json"}), 409, headers
 
     if not flask.request.json:
-        return json.dumps(
-            {"error": ('Not recognised as json, make '
-                       'sure content type is application/json')
-            }), 409, headers
+        return json.dumps({"error": ('Not recognised as json, make '
+                                     'sure content type is application/'
+                                     'json')}), 409, headers
 
     #check result_url here as good to give warning early.
     result_url = input.get('result_url')
     if result_url and not result_url.startswith('http'):
-        return json.dumps({"error": "result_url has to start with http"}), 409, headers
+        return json.dumps({"error": "result_url has to start with http"}), \
+            409, headers
 
     job_type = input.get('job_type')
     if not job_type:
@@ -188,7 +193,8 @@ def job(job_id=None):
 
     metadata = input.get('metadata', {})
     if not isinstance(metadata, dict):
-        return json.dumps({"error": "metadata has to be a json object"}), 409, headers
+        return json.dumps({"error": "metadata has to be a json object"}), \
+            409, headers
     ############# END CHECKING ################
 
     syncronous_job = sync_types.get(job_type)
@@ -197,6 +203,7 @@ def job(job_id=None):
     else:
         asyncronous_job = async_types.get(job_type)
         return run_asyncronous_job(asyncronous_job, job_id, input)
+
 
 def run_syncronous_job(job, job_id, input):
     try:
@@ -223,7 +230,8 @@ def run_syncronous_job(job, job_id, input):
     result_ok = send_result(job_id)
 
     if not result_ok:
-        update_dict['error'] = json.dumps('Process completed but unable to post to result_url')
+        update_dict['error'] = json.dumps('Process completed but unable to '
+                                          'post to result_url')
         update_job(job_id, update_dict)
 
     return job_status(job_id)
@@ -257,8 +265,7 @@ def store_job(job_id, input):
             requested_timestamp=datetime.datetime.now(),
             sent_data=json.dumps(input['data']),
             result_url=input.get('result_url'),
-            api_key=input.get('api_key')
-            )
+            api_key=input.get('api_key'))
         )
         inserts = []
         for key, value in metadata.items():
@@ -285,8 +292,8 @@ def store_job(job_id, input):
 def update_job(job_id, update_dict):
     db.engine.execute(db.task_table.update()
                       .where(db.task_table.c.job_id == job_id)
-                      .values(**update_dict)
-                     )
+                      .values(**update_dict))
+
 
 def send_result(job_id):
     ''' Send results to where requested. '''
@@ -312,6 +319,7 @@ def send_result(job_id):
 
     return result.status_code == requests.codes.ok
 
+
 def get_job_status(job_id):
     result_dict = {}
     result = db.engine.execute(db.task_table.select()
@@ -331,8 +339,8 @@ def get_job_status(job_id):
         else:
             result_dict[field] = unicode(value)
     results = db.engine.execute(db.metadata_table.select()
-                               .where(db.metadata_table.c.job_id == job_id)
-                               ).fetchall()
+                                .where(db.metadata_table.c.job_id ==
+                                       job_id)).fetchall()
     metadata = {}
     for row in results:
         value = row['value']
