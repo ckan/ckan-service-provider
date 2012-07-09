@@ -31,8 +31,9 @@ def configure():
     config_file = os.environ.get('JOB_CONFIG')
     if config_file:
         config.read(config_file)
-        for key, value in config.items('app:job'):
-            app.config[key] = value
+        if config.has_section('app:job'):
+            for key, value in config.items('app:job'):
+                app.config[key] = value
     db_url = app.config.get('DB_URL')
     if not db_url:
         db_url = config.get('app:main', 'sqlalchemy.url')
