@@ -2,6 +2,8 @@
 CKAN Service Prototype
 ======================
 
+[![Build Status](https://travis-ci.org/okfn/ckan-service-prototype.png)](https://travis-ci.org/okfn/ckan-service-prototype)
+
 
 __WORK IN PROGRESS__
 
