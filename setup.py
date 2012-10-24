@@ -17,8 +17,11 @@ setup(name='ckan-service-prototype',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
       include_package_data=True,
       zip_safe=False,
-      install_requires=[
-          # -*- Extra requirements: -*-
+      install_requires=['''
+            APScheduler
+            Flask
+            SQLAlchemy
+            requests'''
       ],
       entry_points="""
       # -*- Entry points: -*-

@@ -14,7 +14,7 @@ Requirements
 --------
 
  * Run ```pip install -r requirements.txt```
- 
+
 
 Configuration
 -------------

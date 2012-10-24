@@ -267,25 +267,18 @@ class TestWeb():
         last_request['data'].pop('requested_timestamp')
         last_request['data'].pop('finished_timestamp')
 
-        assert last_request == {
-            "headers": {"Content-Length": "326",
-                        "Accept-Encoding": u"identity, deflate,"
-                                           " compress, gzip",
-                        u'Accept': u'*/*',
-                        u'User-Agent': u'python-requests/0.13.2',
-                        u'Header': u'key',
-                        u'Host': u'0.0.0.0:9091',
-                        u'Content-Type': u'application/json'},
-            "data": {"status": "complete",
-                     "sent_data": {"time": 0.1},
-                     "job_id": "with_result",
-                     "job_type": "example",
-                     "result_url": "http://0.0.0.0:9091/"
-                                   "result",
-                     "error": None,
-                     "data": "Slept for 0.1 seconds.",
-                     "metadata": {'key': 'value'}
-                     }}, last_request
+        assert last_request[u'headers'][u'Content-Type'] == u'application/json'
+        assert last_request[u'data'] == {
+                    "status": "complete",
+                    "sent_data": {"time": 0.1},
+                    "job_id": "with_result",
+                    "job_type": "example",
+                    "result_url": "http://0.0.0.0:9091/"
+                                  "result",
+                    "error": None,
+                    "data": "Slept for 0.1 seconds.",
+                    "metadata": {'key': 'value'}
+                    }, last_request
 
     def test_missing_job_id(self):
         rv = app.get('/job/not_there')
