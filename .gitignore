@@ -4,3 +4,4 @@ syntax: glob
 *.swp
 *.swo
 ckan_service_prototype.egg-info/*
+*.db
