@@ -154,7 +154,7 @@ def job_status(job_id):
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     job_status.pop('api_key', None)
-    return json.dumps(job_status), 200, headers
+    return flask.jsonify(job_status)
 
 
 @app.route("/job/<job_id>", methods=['POST'])
