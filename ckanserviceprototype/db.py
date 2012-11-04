@@ -8,7 +8,7 @@ metadata_table = None
 
 def setup_db(db_url):
     global engine, metadata
-    engine = sa.create_engine(db_url, echo=True)
+    engine = sa.create_engine(db_url, echo=False)
     metadata = sa.MetaData(engine)
     make_task_table()
     metadata.create_all(engine)
