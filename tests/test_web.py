@@ -76,6 +76,12 @@ class TestWeb():
                                                       'echo'],
                                            name='example'), rv.data
 
+    def test_content_type(self):
+        # make sure that we get json
+        for page in ['/job', '/status', '/job/foo']:
+            rv = app.get(page)
+            assert rv.content_type == 'application/json', rv.content_type
+
     def test_bad_post(self):
 
         rv = app.post('/job', data='{"ffsfsafsa":"moo"}')
