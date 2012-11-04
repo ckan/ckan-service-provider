@@ -96,7 +96,7 @@ def job_listener(event):
         update_job(job_id, update_dict)
 
 
-headers = {'Content-Type': 'aplication/json'}
+headers = {'Content-Type': 'application/json'}
 
 
 @app.route("/status", methods=['GET'])
