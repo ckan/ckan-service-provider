@@ -105,7 +105,7 @@ def status():
     return flask.jsonify(
         version=0.1,
         job_types=job_types,
-        name='example'
+        name=app.config.get('name', 'example')
     )
 
 

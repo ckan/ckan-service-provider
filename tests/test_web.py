@@ -74,7 +74,7 @@ class TestWeb():
                                            job_types=['example',
                                                       'echo_raw',
                                                       'echo'],
-                                           name='example'), rv.data
+                                           name='testing'), rv.data
 
     def test_content_type(self):
         # make sure that we get json
