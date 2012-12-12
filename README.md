@@ -1,6 +1,6 @@
-#CKAN Service Prototype
+# CKAN Service Provier
 
-[![Build Status](https://travis-ci.org/okfn/ckan-service-prototype.png)](https://travis-ci.org/okfn/ckan-service-prototype)
+[![Build Status](https://travis-ci.org/okfn/ckan-service-provider.png)](https://travis-ci.org/okfn/ckan-service-provider)
 
 
 __WORK IN PROGRESS__
