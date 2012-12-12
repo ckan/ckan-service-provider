@@ -3,9 +3,9 @@ import sys, os
 
 version = '0.1'
 
-setup(name='ckan-service-prototype',
+setup(name='ckan-service-provider',
       version=version,
-      description="An example ckan service",
+      description="A server that can server jobs at services.",
       long_description="""\
 """,
       classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers

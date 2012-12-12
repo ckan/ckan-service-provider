@@ -3,5 +3,5 @@ syntax: glob
 *.pyc
 *.swp
 *.swo
-ckan_service_prototype.egg-info/*
+ckan_service_provider.egg-info/*
 *.db

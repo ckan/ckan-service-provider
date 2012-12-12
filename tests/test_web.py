@@ -4,9 +4,9 @@ import json
 import time
 
 import requests
-import ckanserviceprototype.web as web
-import ckanserviceprototype.job as job
-import ckanserviceprototype.util as util
+import ckanserviceprovider.web as web
+import ckanserviceprovider.job as job
+import ckanserviceprovider.util as util
 os.environ['JOB_CONFIG'] = os.path.join(os.path.dirname(__file__),
                                         'test.ini')
 
