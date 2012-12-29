@@ -356,6 +356,15 @@ def get_job_status(job_id):
     result_dict['metadata'] = metadata
     return result_dict
 
+
+def run():
+    return app.run(port=int(app.config.get('server_port', 5000)))
+
+
+def test_client():
+    return app.test_client()
+
+
 if __name__ == "__main__":
     configure()
-    app.run()
+    run()

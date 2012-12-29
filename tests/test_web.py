@@ -15,7 +15,7 @@ try:
 except OSError:
     pass
 web.configure()
-app = web.app.test_client()
+app = web.test_client()
 
 
 @job.sync
