@@ -157,6 +157,17 @@ def job_status(job_id):
     return flask.jsonify(job_status)
 
 
+@app.route("/job/<job_id>/data", methods=['GET'])
+def job_data(job_id):
+    job_status = get_job_status(job_id)
+    if not job_status:
+        return json.dumps({'error': 'job_id not found'}), 404, headers
+    if job_status['error']:
+        return json.dumps({'error': job_status['error']}), 409, headers
+    content_type = job_status['metadata'].get('mimetype')
+    return flask.Response(job_status['data'], mimetype=content_type)
+
+
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
 def job(job_id=None):

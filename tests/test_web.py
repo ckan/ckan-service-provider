@@ -369,7 +369,8 @@ class TestWeb():
 
         rv = app.post('/job/echobasic',
                       data=json.dumps({"metadata": {"key": "value",
-                                                    "moo": "moo"},
+                                                    "moo": "moo",
+                                                    "mimetype": "text/csv"},
                                        "job_type": "echo", "data": "ping"}),
                       content_type='application/json')
 
@@ -385,7 +386,8 @@ class TestWeb():
                                u'error': None,
                                u'data': u'>ping',
                                u'metadata': {"key": "value",
-                                             "moo": "moo"}}, return_data
+                                             "moo": "moo",
+                                             "mimetype": "text/csv"}}, return_data
 
         rv = app.get('/job/echobasic')
         job_status_data = json.loads(rv.data)
@@ -393,6 +395,11 @@ class TestWeb():
         job_status_data.pop('finished_timestamp')
 
         assert return_data == job_status_data
+
+        rv = app.get('/job/echobasic/data')
+        assert rv.status_code == 200, rv.status_code
+        assert rv.data == u'>ping', rv.data
+        assert 'text/csv' in rv.content_type, rv.content_type
 
         rv = app.post('/job/echobasic',
                       data=json.dumps({"job_type": "echo", "data": "ping"}),
