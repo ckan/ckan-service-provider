@@ -2,6 +2,7 @@ import os
 import subprocess
 import json
 import time
+from nose.tools import assert_equal
 
 import requests
 import ckanserviceprovider.web as web
@@ -70,17 +71,17 @@ class TestWeb():
 
     def test_status(self):
         rv = app.get('/status')
-        assert json.loads(rv.data) == dict(version=0.1,
+        assert_equal(json.loads(rv.data), dict(version=0.1,
                                            job_types=['example',
                                                       'echo_raw',
                                                       'echo'],
-                                           name='testing'), rv.data
+                                           name='testing'))
 
     def test_content_type(self):
         # make sure that we get json
         for page in ['/job', '/status', '/job/foo']:
             rv = app.get(page)
-            assert rv.content_type == 'application/json', rv.content_type
+            assert_equal(rv.content_type, 'application/json')
 
     def test_bad_post(self):
 
@@ -378,7 +379,7 @@ class TestWeb():
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
 
-        assert return_data == {u'status': u'complete',
+        assert_equal(return_data, {u'status': u'complete',
                                u'sent_data': u'ping',
                                u'job_id': u'echobasic',
                                u'job_type': u'echo',
@@ -387,18 +388,18 @@ class TestWeb():
                                u'data': u'>ping',
                                u'metadata': {"key": "value",
                                              "moo": "moo",
-                                             "mimetype": "text/csv"}}, return_data
+                                             "mimetype": "text/csv"}})
 
         rv = app.get('/job/echobasic')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
 
-        assert return_data == job_status_data
+        assert_equal(return_data, job_status_data)
 
         rv = app.get('/job/echobasic/data')
-        assert rv.status_code == 200, rv.status_code
-        assert rv.data == u'>ping', rv.data
+        assert_equal(rv.status_code, 200)
+        assert_equal(rv.data, u'>ping')
         assert 'text/csv' in rv.content_type, rv.content_type
 
         rv = app.post('/job/echobasic',
@@ -406,8 +407,7 @@ class TestWeb():
                       content_type='application/json')
 
         return_data = json.loads(rv.data)
-        assert return_data == {u'error': u'job_id echobasic already exists'},\
-            return_data
+        assert_equal(return_data, {u'error': u'job_id echobasic already exists'})
 
         rv = app.post('/job/echoknownbad',
                       data=json.dumps({"job_type": "echo", "data": ">ping"}),
@@ -415,14 +415,14 @@ class TestWeb():
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
-        assert return_data == {u'status': u'error',
+        assert_equal(return_data, {u'status': u'error',
                                u'sent_data': u'>ping',
                                u'job_id': u'echoknownbad',
                                u'job_type': u'echo',
                                u'result_url': None,
                                u'error': u'do not start message with >',
                                u'data': None,
-                               u'metadata': {}}, return_data
+                               u'metadata': {}})
 
         rv = app.post('/job/echounknownbad',
                       data=json.dumps({"job_type": "echo", "data": 1}),
@@ -438,7 +438,7 @@ class TestWeb():
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
-        assert return_data == {u'status': u'complete',
+        assert_equal(return_data, {u'status': u'complete',
                                u'sent_data': u'moo',
                                u'job_id': u'echobad_url',
                                u'job_type': u'echo',
@@ -446,7 +446,7 @@ class TestWeb():
                                u'error': u'Process completed but unable to'
                                           ' post to result_url',
                                u'data': u'>moo',
-                               u'metadata': {}}, return_data
+                               u'metadata': {}})
 
     def test_z_test_list(self):
         #has z because needs some data to be useful
