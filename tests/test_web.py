@@ -8,7 +8,7 @@ import ckanserviceprovider.web as web
 import ckanserviceprovider.job as job
 import ckanserviceprovider.util as util
 os.environ['JOB_CONFIG'] = os.path.join(os.path.dirname(__file__),
-                                        'test.ini')
+                                        'settings_test.py')
 
 try:
     os.remove('/tmp/job_store.db')

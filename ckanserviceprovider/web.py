@@ -1,7 +1,6 @@
 import uuid
 import datetime
 import os
-import ConfigParser
 import json
 import traceback
 
@@ -16,6 +15,8 @@ import sqlalchemy as sa
 import db
 import util
 
+import default_settings
+
 #to be filled by sync async decorators
 sync_types = {}
 async_types = {}
@@ -27,16 +28,14 @@ scheduler.misfire_grace_time = 3600
 
 
 def configure():
-    config = ConfigParser.ConfigParser()
-    config_file = os.environ.get('JOB_CONFIG')
-    if config_file:
-        config.read(config_file)
-        if config.has_section('app:job'):
-            for key, value in config.items('app:job'):
-                app.config[key] = value
-    db_url = app.config.get('DB_URL')
-    if not db_url:
-        db_url = config.get('app:main', 'sqlalchemy.url')
+    app.config.from_object(default_settings)
+    app.config.from_envvar('JOB_CONFIG', silent=True)
+    # parent directory
+    here = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(os.path.dirname(here), 'settings_local.py')
+    if os.path.exists(config_path):
+        app.config.from_pyfile(config_path)
+    db_url = app.config.get('SQLALCHEMY_DATABASE_URI')
     if not db_url:
         raise Exception('No db_url in config')
     db.setup_db(db_url)
@@ -105,7 +104,7 @@ def status():
     return flask.jsonify(
         version=0.1,
         job_types=job_types,
-        name=app.config.get('name', 'example')
+        name=app.config.get('NAME', 'example')
     )
 
 
@@ -369,7 +368,7 @@ def get_job_status(job_id):
 
 
 def run():
-    return app.run(port=int(app.config.get('server_port', 5000)))
+    return app.run(port=int(app.config.get('PORT', 5000)))
 
 
 def test_client():
