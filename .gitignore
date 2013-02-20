@@ -5,3 +5,4 @@ syntax: glob
 *.swo
 ckan_service_provider.egg-info/*
 *.db
+settings_local.py
