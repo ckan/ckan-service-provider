@@ -98,6 +98,18 @@ def job_listener(event):
 headers = {'Content-Type': 'application/json'}
 
 
+@app.route("/", methods=['GET'])
+def index():
+    return flask.jsonify(
+        help="""Submit long running jobs.
+        ``/status``: Status information
+        ``/job``: List jobssubmit jobs with POST
+        ``/job/<id>``: Get information about a specific job
+        ``/job/<id>/data``: Get results from job
+        """
+    )
+
+
 @app.route("/status", methods=['GET'])
 def status():
     job_types = async_types.keys() + sync_types.keys()
