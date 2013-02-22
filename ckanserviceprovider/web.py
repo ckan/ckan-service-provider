@@ -30,11 +30,6 @@ scheduler.misfire_grace_time = 3600
 def configure():
     app.config.from_object(default_settings)
     app.config.from_envvar('JOB_CONFIG', silent=True)
-    # parent directory
-    here = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(os.path.dirname(here), 'settings_local.py')
-    if os.path.exists(config_path):
-        app.config.from_pyfile(config_path)
     db_url = app.config.get('SQLALCHEMY_DATABASE_URI')
     if not db_url:
         raise Exception('No db_url in config')
@@ -385,8 +380,3 @@ def run():
 
 def test_client():
     return app.test_client()
-
-
-if __name__ == "__main__":
-    configure()
-    run()

@@ -9,7 +9,7 @@ A prototype of the new CKAN Services framework
 
 ## Get started
 
-Run `JOB_CONFIG=example.ini python ckanserviceprototype/web.py`
+Have a look at `\example` and see how jobs are defeined. Run the example server with `python example/main.py example/settings_local.py`.
 
 ##Requirements
 
