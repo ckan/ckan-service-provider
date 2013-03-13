@@ -3,7 +3,7 @@ import sys, os
 
 version = '0.1'
 
-setup(name='ckan-service-provider',
+setup(name='ckanserviceprovider',
       version=version,
       description="A server that can server jobs at services.",
       long_description="""\
