@@ -1,16 +1,17 @@
 import uuid
 import datetime
-import os
+import sys
 import json
 import traceback
 
 import flask
+from flask.ext.admin import Admin
 import werkzeug
 import apscheduler.scheduler as apscheduler
 import apscheduler.events as events
 import sqlalchemy.sql as sql
-import requests
 import sqlalchemy as sa
+import requests
 
 import db
 import util
@@ -33,11 +34,12 @@ def configure():
     db_url = app.config.get('SQLALCHEMY_DATABASE_URI')
     if not db_url:
         raise Exception('No db_url in config')
-    db.setup_db(db_url)
+    db.setup_db(app)
     scheduler.add_listener(job_listener,
                            events.EVENT_JOB_EXECUTED |
                            events.EVENT_JOB_MISSED |
                            events.EVENT_JOB_ERROR)
+    #Admin(app)
 
 
 class RunNowTrigger(object):
@@ -73,7 +75,7 @@ def job_listener(event):
             update_dict['error'] = json.dumps(event.exception.message)
         else:
             update_dict['error'] = \
-                json.dumps('\n'.join(traceback.format_tb(event.traceback))
+                json.dumps(traceback.format_tb(event.traceback)[-1]
                            +
                            repr(event.exception))
     else:
@@ -122,18 +124,18 @@ def job_list():
     offset = args.pop('_offset', 0)
 
     select = sql.select(
-        [db.task_table.c.job_id],
-        from_obj=[db.task_table.outerjoin(
+        [db.jobs_table.c.job_id],
+        from_obj=[db.jobs_table.outerjoin(
             db.metadata_table,
-            db.task_table.c.job_id == db.metadata_table.c.job_id)
+            db.jobs_table.c.job_id == db.metadata_table.c.job_id)
         ]).\
-        group_by(db.task_table.c.job_id).\
-        order_by(db.task_table.c.requested_timestamp.desc()).\
+        group_by(db.jobs_table.c.job_id).\
+        order_by(db.jobs_table.c.requested_timestamp.desc()).\
         limit(limit).offset(offset)
 
     status = args.pop('_status', None)
     if status:
-        select = select.where(db.task_table.c.status == status)
+        select = select.where(db.jobs_table.c.status == status)
 
     ors = []
     for key, value in args.iteritems():
@@ -143,7 +145,7 @@ def job_list():
     if ors:
         select = select.where(sql.or_(*ors))
         select = select.having(
-            sql.func.count(db.task_table.c.job_id) == len(ors)
+            sql.func.count(db.jobs_table.c.job_id) == len(ors)
         )
 
     result = db.engine.execute(select)
@@ -245,7 +247,9 @@ def run_syncronous_job(job, job_id, input):
         update_dict['error'] = json.dumps(e.message)
     except Exception, e:
         update_dict['status'] = 'error'
-        update_dict['error'] = json.dumps(traceback.format_exc())
+        update_dict['error'] = json.dumps(traceback.format_tb(sys.exc_traceback)[-1]
+                                          +
+                                          repr(e))
 
     update_dict['finished_timestamp'] = datetime.datetime.now()
 
@@ -281,7 +285,7 @@ def store_job(job_id, input):
     conn = db.engine.connect()
     trans = conn.begin()
     try:
-        conn.execute(db.task_table.insert().values(
+        conn.execute(db.jobs_table.insert().values(
             job_id=job_id,
             job_type=input['job_type'],
             status='pending',
@@ -313,8 +317,8 @@ def store_job(job_id, input):
 
 
 def update_job(job_id, update_dict):
-    db.engine.execute(db.task_table.update()
-                      .where(db.task_table.c.job_id == job_id)
+    db.engine.execute(db.jobs_table.update()
+                      .where(db.jobs_table.c.job_id == job_id)
                       .values(**update_dict))
 
 
@@ -345,8 +349,8 @@ def send_result(job_id):
 
 def get_job_status(job_id):
     result_dict = {}
-    result = db.engine.execute(db.task_table.select()
-                               .where(db.task_table.c.job_id == job_id)
+    result = db.engine.execute(db.jobs_table.select()
+                               .where(db.jobs_table.c.job_id == job_id)
                                ).first()
     if not result:
         return None

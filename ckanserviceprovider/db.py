@@ -2,21 +2,22 @@ import sqlalchemy as sa
 
 engine = None
 metadata = None
-task_table = None
+jobs_table = None
 metadata_table = None
 
 
-def setup_db(db_url):
+def setup_db(app):
     global engine, metadata
-    engine = sa.create_engine(db_url, echo=False)
+    engine = sa.create_engine(app.config.get('SQLALCHEMY_DATABASE_URI'),
+                              echo=app.config.get('SQLALCHEMY_ECHO'))
     metadata = sa.MetaData(engine)
     make_task_table()
     metadata.create_all(engine)
 
 
 def make_task_table():
-    global task_table, metadata_table
-    task_table = sa.Table('datastorer_tasks', metadata,
+    global jobs_table, metadata_table
+    jobs_table = sa.Table('jobs', metadata,
                           sa.Column('job_id', sa.UnicodeText,
                                     primary_key=True),
                           sa.Column('job_type', sa.UnicodeText),

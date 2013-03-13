@@ -1,5 +1,12 @@
 DEBUG = False
 TESTING = False
+SECRET_KEY = 'please_replace_me'
+USERNAME = 'admin'
+PASSWORD = 'pass'
+
+# database
+
+SQLALCHEMY_ECHO = False
 
 # webserver host and port
 

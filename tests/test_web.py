@@ -22,14 +22,16 @@ app = web.test_client()
 @job.sync
 def echo(task_id, input):
     if input['data'].startswith('>'):
-        raise util.JobError('do not start message with >')
+        raise util.JobError('Do not start message with >')
+    if input['data'].startswith('#'):
+        raise Exception('Something went totally wrong')
     return '>' + input['data']
 
 
 @job.sync
 def echo_raw(task_id, input):
     if input['data'].startswith('>'):
-        raise util.JobError('do not start message with >')
+        raise util.JobError('Do not start message with >')
 
     def raw():
         for x in sorted(input['data']):
@@ -412,6 +414,7 @@ class TestWeb():
         rv = app.post('/job/echoknownbad',
                       data=json.dumps({"job_type": "echo", "data": ">ping"}),
                       content_type='application/json')
+        assert_equal(rv.status_code, 200)
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
@@ -420,7 +423,7 @@ class TestWeb():
                                u'job_id': u'echoknownbad',
                                u'job_type': u'echo',
                                u'result_url': None,
-                               u'error': u'do not start message with >',
+                               u'error': u'Do not start message with >',
                                u'data': None,
                                u'metadata': {}})
 
