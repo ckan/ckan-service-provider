@@ -290,7 +290,7 @@ def store_job(job_id, input):
             job_type=input['job_type'],
             status='pending',
             requested_timestamp=datetime.datetime.now(),
-            sent_data=json.dumps(input['data']),
+            sent_data=json.dumps(input.get('data', {})),
             result_url=input.get('result_url'),
             api_key=input.get('api_key'))
         )

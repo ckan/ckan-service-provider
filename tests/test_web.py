@@ -74,10 +74,10 @@ class TestWeb():
     def test_status(self):
         rv = app.get('/status')
         assert_equal(json.loads(rv.data), dict(version=0.1,
-                                           job_types=['example',
-                                                      'echo_raw',
-                                                      'echo'],
-                                           name='testing'))
+                                               job_types=['example',
+                                                          'echo_raw',
+                                                          'echo'],
+                                               name='testing'))
 
     def test_content_type(self):
         # make sure that we get json
@@ -358,7 +358,7 @@ class TestWeb():
             job_status_data
         web.scheduler.misfire_grace_time = 3600
 
-    def test_syncronous__raw_post(self):
+    def test_syncronous_raw_post(self):
 
         rv = app.post('/job/echoraw',
                       data=json.dumps({"metadata": {"key": "value",
