@@ -176,6 +176,31 @@ def job_data(job_id):
     return flask.Response(job_status['data'], mimetype=content_type)
 
 
+@app.route("/job/<job_id>/resubmit", methods=['POST'])
+def resubmit_job(job_id):
+    conn = db.engine.connect()
+    job = conn.execute(db.jobs_table.select().where(
+                       db.jobs_table.c.job_id == job_id)).first()
+    if not job:
+        return json.dumps({"error": ('Job does not exist')}), 409, headers
+    if job['status'] != 'error':
+        return json.dumps({"error": (
+            'Cannot resubmit job with status {}'.format(
+                job['status']))}), 409, headers
+    input = {
+        'data': json.loads(job['sent_data']),
+        'job_type': job['job_type'],
+        'api_key': job['api_key'],
+        'metadata': get_metadata(job_id)
+    }
+    syncronous_job = sync_types.get(job['job_type'])
+    if syncronous_job:
+        return run_syncronous_job(syncronous_job, job_id, input, True)
+    else:
+        asyncronous_job = async_types.get(job['job_type'])
+        return run_asyncronous_job(asyncronous_job, job_id, input, True)
+
+
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
 def job(job_id=None):
@@ -233,9 +258,11 @@ def job(job_id=None):
         return run_asyncronous_job(asyncronous_job, job_id, input)
 
 
-def run_syncronous_job(job, job_id, input):
+def run_syncronous_job(job, job_id, input, resubmitted=False):
+    # resubmitted jobs do not have to be stored
     try:
-        store_job(job_id, input)
+        if not resubmitted:
+            store_job(job_id, input)
     except sa.exc.IntegrityError, e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
@@ -272,12 +299,14 @@ def run_syncronous_job(job, job_id, input):
     return job_status(job_id)
 
 
-def run_asyncronous_job(job, job_id, input):
+def run_asyncronous_job(job, job_id, input, resubmitted=False):
+    # resubmitted jobs do not have to be stored
     if not scheduler.running:
         scheduler.start()
 
     try:
-        store_job(job_id, input)
+        if not resubmitted:
+            store_job(job_id, input)
     except sa.exc.IntegrityError, e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
@@ -373,6 +402,11 @@ def get_job_status(job_id):
             result_dict[field] = value.isoformat()
         else:
             result_dict[field] = unicode(value)
+    result_dict['metadata'] = get_metadata(job_id)
+    return result_dict
+
+
+def get_metadata(job_id):
     results = db.engine.execute(db.metadata_table.select()
                                 .where(db.metadata_table.c.job_id ==
                                        job_id)).fetchall()
@@ -382,8 +416,7 @@ def get_job_status(job_id):
         if row['type'] == 'json':
             value = json.loads(value)
         metadata[row['key']] = value
-    result_dict['metadata'] = metadata
-    return result_dict
+    return metadata
 
 
 def run():

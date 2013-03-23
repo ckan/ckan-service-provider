@@ -456,33 +456,57 @@ class TestWeb():
                                u'data': u'>moo',
                                u'metadata': {}})
 
+    def test_resubmit_sync(self):
+        rv = app.post('/job/failedjob',
+                      data=json.dumps({"job_type": "echo", "data": ">ping"}),
+                      content_type='application/json')
+        assert_equal(rv.status_code, 200)
+        return_data = json.loads(rv.data)
+        assert_equal(return_data['status'], u'error')
+
+        rv = app.post('/job/non_existent/resubmit',
+                      data=json.dumps({}),
+                      content_type='application/json')
+        assert_equal(rv.status_code, 409)
+        return_data = json.loads(rv.data)
+        assert_equal(return_data['error'], "Job does not exist")
+
+        rv = app.post('/job/failedjob/resubmit',
+                      data=json.dumps({}),
+                      content_type='application/json')
+        print rv.data
+        assert_equal(rv.status_code, 200)
+        return_data = json.loads(rv.data)
+        # status should still be error
+        assert_equal(return_data['status'], u'error')
+
     def test_z_test_list(self):
         #has z because needs some data to be useful
 
         rv = app.get('/job')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 11,  return_data['list']
+        assert len(return_data['list']) == 12, return_data['list']
 
         rv = app.get('/job?_limit=1')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 1,  return_data['list']
+        assert len(return_data['list']) == 1, return_data['list']
 
         rv = app.get('/job?_status=complete')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 7,  return_data['list']
+        assert len(return_data['list']) == 7, return_data['list']
 
         rv = app.get('/job?key=value')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 4,  return_data['list']
+        assert len(return_data['list']) == 4, return_data['list']
 
         rv = app.get('/job?key=value&moo=moo')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 2,  return_data['list']
+        assert len(return_data['list']) == 2, return_data['list']
 
         rv = app.get('/job?key=value&moo=moo&moon=moon')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 0,  return_data['list']
+        assert len(return_data['list']) == 0, return_data['list']
 
         rv = app.get('/job?key=value&moon=moon')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 0,  return_data['list']
+        assert len(return_data['list']) == 0, return_data['list']
