@@ -88,31 +88,36 @@ class TestWeb():
     def test_bad_post(self):
 
         rv = app.post('/job', data='{"ffsfsafsa":"moo"}')
-        assert json.loads(rv.data) == {u'error': u'Not recognised as json,'
-                                                 ' make sure content type'
-                                                 ' is application/json'}, \
-            json.loads(rv.data)
+        assert_equal(json.loads(rv.data), {u'error': u'Not recognised as json,'
+                                           ' make sure content type'
+                                           ' is application/json'})
 
         rv = app.post('/job',
                       data='{"ffsfsafsa":moo}',
                       content_type='application/json')
-        assert json.loads(rv.data) == {u'error': u'Malformed json'}, \
-            json.loads(rv.data)
+        assert_equal(json.loads(rv.data), {u'error': u'Malformed json'})
 
         rv = app.post('/job',
                       data=json.dumps({"data": {"time": 5}}),
                       content_type='application/json')
-        assert json.loads(rv.data) == {u'error': u'Please specify a job '
-                                                 'type'}, json.loads(rv.data)
+        assert_equal(json.loads(rv.data), {u'error': u'Please specify a job '
+                                           'type'})
 
         rv = app.post('/job',
                       data=json.dumps({"job_type": "moo",
                                        "data": {"time": 5}}),
                       content_type='application/json')
-        assert json.loads(rv.data) == {u'error': u'Job type moo not available.'
-                                                 ' Available job types are '
-                                                 'example, echo_raw, echo'}, \
-            json.loads(rv.data)
+        assert_equal(json.loads(rv.data), {u'error': u'Job type moo not available.'
+                                           ' Available job types are '
+                                           'example, echo_raw, echo'})
+
+        rv = app.post('/job',
+                      data=json.dumps({"job_type": "example",
+                                       "data": {"time": 5},
+                                       "foo": 42}),
+                      content_type='application/json')
+        assert_equal(json.loads(rv.data), {u'error': u'Too many arguments. '
+                                           'Extra keys are foo'})
 
     def test_asyncronous_post(self):
 

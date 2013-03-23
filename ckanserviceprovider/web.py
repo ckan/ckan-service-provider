@@ -193,6 +193,14 @@ def job(job_id=None):
                                      'sure content type is application/'
                                      'json')}), 409, headers
 
+    ACCEPTED_ARGUMENTS = set(['job_type', 'data', 'metadata',
+                              'result_url', 'api_key', 'metadata'])
+    extra_keys = set(input.keys()) - ACCEPTED_ARGUMENTS
+    if extra_keys:
+        return json.dumps({"error": (
+            'Too many arguments. Extra keys are {}'.format(
+                ', '.join(extra_keys)))}), 409, headers
+
     #check result_url here as good to give warning early.
     result_url = input.get('result_url')
     if result_url and not result_url.startswith('http'):
