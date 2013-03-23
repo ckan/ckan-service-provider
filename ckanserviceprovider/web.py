@@ -97,18 +97,17 @@ headers = {'Content-Type': 'application/json'}
 
 @app.route("/", methods=['GET'])
 def index():
+    """Show link to documentation."""
     return flask.jsonify(
-        help="""Submit long running jobs.
-        ``/status``: Status information
-        ``/job``: List jobssubmit jobs with POST
-        ``/job/<id>``: Get information about a specific job
-        ``/job/<id>/data``: Get results from job
+        help="""
+        Read the documentation.
         """
     )
 
 
 @app.route("/status", methods=['GET'])
 def status():
+    """Show version, available job types and name of service."""
     job_types = async_types.keys() + sync_types.keys()
     return flask.jsonify(
         version=0.1,
@@ -119,6 +118,7 @@ def status():
 
 @app.route("/job", methods=['GET'])
 def job_list():
+    """List all jobs."""
     args = dict((key, value) for key, value in flask.request.args.items())
     limit = args.pop('_limit', 100)
     offset = args.pop('_offset', 0)
@@ -158,6 +158,7 @@ def job_list():
 
 @app.route("/job/<job_id>", methods=['GET'])
 def job_status(job_id):
+    """Show a specific job."""
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -167,6 +168,7 @@ def job_status(job_id):
 
 @app.route("/job/<job_id>/data", methods=['GET'])
 def job_data(job_id):
+    """Get the raw data that the job retunrned."""
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -178,6 +180,7 @@ def job_data(job_id):
 
 @app.route("/job/<job_id>/resubmit", methods=['POST'])
 def resubmit_job(job_id):
+    """Resubmit a job that failed."""
     conn = db.engine.connect()
     job = conn.execute(db.jobs_table.select().where(
                        db.jobs_table.c.job_id == job_id)).first()
@@ -204,6 +207,7 @@ def resubmit_job(job_id):
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
 def job(job_id=None):
+    """Sumbit a job. If no id is provided, a random id will be generated."""
     if not job_id:
         job_id = str(uuid.uuid4())
 

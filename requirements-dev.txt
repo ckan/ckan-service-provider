@@ -1,0 +1,2 @@
+sphinxcontrib-httpdomain>=1.1.7
+nose==1.2.1

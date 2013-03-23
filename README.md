@@ -19,3 +19,12 @@ Have a look at `\example` and see how jobs are defeined. Run the example server 
 ##Configuration
 
  * TBD
+
+##Build the documentation
+
+``python setup.py build_sphinx``
+
+##Meta
+
+* **Contact**: David Raznick <david.raznick@okfn.org>, Dominik Moritz <dominik.moritz@okfn.org>
+* **License**: AGPL
