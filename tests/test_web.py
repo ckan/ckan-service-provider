@@ -467,9 +467,9 @@ class TestWeb():
         rv = app.post('/job/non_existent/resubmit',
                       data=json.dumps({}),
                       content_type='application/json')
-        assert_equal(rv.status_code, 409)
+        assert_equal(rv.status_code, 404)
         return_data = json.loads(rv.data)
-        assert_equal(return_data['error'], "Job does not exist")
+        assert_equal(return_data['error'], "job_id not found")
 
         rv = app.post('/job/failedjob/resubmit',
                       data=json.dumps({}),

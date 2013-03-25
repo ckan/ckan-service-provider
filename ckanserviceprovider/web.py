@@ -97,7 +97,12 @@ headers = {'Content-Type': 'application/json'}
 
 @app.route("/", methods=['GET'])
 def index():
-    """Show link to documentation."""
+    """Show link to documentation.
+
+    :rtype: A dictionary with the following keys
+    :param help: Help text
+    :type help: string
+    """
     return flask.jsonify(
         help="""
         Read the documentation.
@@ -107,7 +112,18 @@ def index():
 
 @app.route("/status", methods=['GET'])
 def status():
-    """Show version, available job types and name of service."""
+    """Show version, available job types and name of service.
+
+    **Results:**
+
+    :rtype: A dictionary with the following keys
+    :param version: Version of the service provider
+    :type version: float
+    :param job_types: Available job types
+    :type job_types: list of strings
+    :param name: Name of the service
+    :type name: string
+    """
     job_types = async_types.keys() + sync_types.keys()
     return flask.jsonify(
         version=0.1,
@@ -118,7 +134,10 @@ def status():
 
 @app.route("/job", methods=['GET'])
 def job_list():
-    """List all jobs."""
+    """List all jobs.
+
+    :rtype: A list of job ids
+    """
     args = dict((key, value) for key, value in flask.request.args.items())
     limit = args.pop('_limit', 100)
     offset = args.pop('_offset', 0)
@@ -158,7 +177,34 @@ def job_list():
 
 @app.route("/job/<job_id>", methods=['GET'])
 def job_status(job_id):
-    """Show a specific job."""
+    """Show a specific job.
+
+    **Results:**
+
+    :rtype: A dictionary with the following keys
+    :param status: Status of job (complete, error, running)
+    :type status: string
+    :param sent_data: Input data for job
+    :type sent_data: json encodable data
+    :param job_id: Id of job
+    :type job_id: string
+    :param result_url: Callback url
+    :type result_url: url string
+    :param data: Results from job.
+    :type data: json encodable data
+    :param error: Error raised during job execution
+    :type error: string
+    :param metadata: Metadata provided when submitting job.
+    :type metadata: list of key - value pairs
+    :param requested_timestamp: Time the job started
+    :type requested_timestamp: timestamp
+    :param finished_timestamp: Time the job finished
+    :type finished_timestamp: timestamp
+
+    :statuscode 200: no error
+    :statuscode 404: job id not found
+    :statuscode 409: an error occurred
+    """
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -168,7 +214,17 @@ def job_status(job_id):
 
 @app.route("/job/<job_id>/data", methods=['GET'])
 def job_data(job_id):
-    """Get the raw data that the job retunrned."""
+    """Get the raw data that the job returned. The mimetype
+    will be the value provided in the metdata for the key ``mimetype``.
+
+    **Results:**
+
+    :rtype: string
+
+    :statuscode 200: no error
+    :statuscode 404: job id not found
+    :statuscode 409: an error occurred
+    """
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -180,12 +236,21 @@ def job_data(job_id):
 
 @app.route("/job/<job_id>/resubmit", methods=['POST'])
 def resubmit_job(job_id):
-    """Resubmit a job that failed."""
+    """Resubmit a job that failed.
+
+    **Results:**
+
+    See :http:post:`/job/<job_id>`
+
+    :statuscode 200: no error
+    :statuscode 404: job id not found
+    :statuscode 409: an error occurred
+    """
     conn = db.engine.connect()
     job = conn.execute(db.jobs_table.select().where(
                        db.jobs_table.c.job_id == job_id)).first()
     if not job:
-        return json.dumps({"error": ('Job does not exist')}), 409, headers
+        return json.dumps({"error": ('job_id not found')}), 404, headers
     if job['status'] != 'error':
         return json.dumps({"error": (
             'Cannot resubmit job with status {}'.format(
@@ -207,7 +272,31 @@ def resubmit_job(job_id):
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
 def job(job_id=None):
-    """Sumbit a job. If no id is provided, a random id will be generated."""
+    """Sumbit a job. If no id is provided, a random id will be generated.
+
+    :param job_type: Which kind of job should be run. Has to be one of the
+        available job types.
+    :type job_type: string
+    :param api_key: An API key that is needed to execute the job. This could
+        be a CKAN API key that is needed to write any data.
+    :type api_key: string
+    :param data: Data that is send to the job as input. (Optional)
+    :type data: json encodable data
+    :param result_url: Callback url that is called once the job has finished.
+        (Optional)
+    :type result_url: url string
+    :param metadata: Data needed for the execution of the job which is not
+        the input data. (Optional)
+    :type metadata: list of key - value pairs
+
+    **Results:**
+
+    See :http:get:`/job/<job_id>`
+
+    :statuscode 200: no error
+    :statuscode 409: an error occurred
+
+    """
     if not job_id:
         job_id = str(uuid.uuid4())
 
