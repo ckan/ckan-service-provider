@@ -5,6 +5,7 @@ import json
 import traceback
 
 import flask
+import flask.ext.login as flogin
 #from flask.ext.admin import Admin
 import werkzeug
 import apscheduler.scheduler as apscheduler
@@ -28,6 +29,23 @@ scheduler = apscheduler.Scheduler()
 scheduler.misfire_grace_time = 3600
 
 
+class User(flogin.UserMixin):
+    def __init__(self, name, id, active=True):
+        self.name = name
+        self.id = id
+        self.active = active
+
+    def is_active(self):
+        return self.active
+
+
+class Anonymous(flogin.AnonymousUser):
+    name = u"Anonymous"
+
+_users = None
+_names = None
+
+
 def configure():
     app.config.from_object(default_settings)
     app.config.from_envvar('JOB_CONFIG', silent=True)
@@ -39,11 +57,33 @@ def configure():
                            events.EVENT_JOB_EXECUTED |
                            events.EVENT_JOB_MISSED |
                            events.EVENT_JOB_ERROR)
+
+    login_manager = flogin.LoginManager()
+    login_manager.setup_app(app)
+
+    login_manager.anonymous_user = Anonymous
+    login_manager.login_view = "login"
+
+    global _users
+    global _names
+
+    _users = {
+        app.config['USERNAME']: User('Admin', 0)
+    }
+
+    _names = dict((int(v.get_id()), k) for k, v in _users.items())
+
+    @login_manager.user_loader
+    def load_user(userid):
+        userid = int(userid)
+        name = _names.get(userid)
+        return _users.get(name)
+
     #Admin(app)
 
 
 class RunNowTrigger(object):
-    ''' custom apsceduler trigger to run job once and only
+    ''' custom apscheduler trigger to run job once and only
     once'''
     def __init__(self):
         self.run = False
@@ -105,8 +145,8 @@ def index():
     """
     return flask.jsonify(
         help="""
-        Read the documentation.
-        """
+        Get help at:
+        http://ckan-service-provider.readthedocs.org/."""
     )
 
 
@@ -130,6 +170,76 @@ def status():
         job_types=job_types,
         name=app.config.get('NAME', 'example')
     )
+
+
+def check_auth(username, password):
+    """This function is called to check if a username /
+    password combination is valid.
+    """
+    return (username == app.config['USERNAME'] and
+            password == app.config['PASSWORD'])
+
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    """ Log in as administrator
+
+    :param username: The administrator's username
+    :type username: string
+    :param password: The administrator's password
+    :type password: string
+    """
+    username = None
+    password = None
+    next = flask.request.args.get('next')
+    auth = flask.request.authorization
+
+    if flask.request.method == 'POST':
+        username = flask.request.form['username']
+        password = flask.request.form['password']
+
+    if auth and auth.type == 'basic':
+        username = auth.username
+        password = auth.password
+
+    if not flogin.current_user.is_active():
+        error = 'You have to login with proper credentials'
+        if username and password:
+            if check_auth(username, password):
+                user = _users.get(username)
+                if user:
+                    if flogin.login_user(user):
+                        return flask.redirect(next or flask.url_for("user"))
+                    error = 'Could not log in user.'
+                else:
+                    error = 'User not found.'
+            else:
+                error = 'Wrong username or password.'
+        else:
+            error = 'No username or password.'
+        return flask.Response(
+            'Could not verify your access level for that URL.\n {}'.format(error),
+            401,
+            {'WWW-Authenticate': 'Basic realm="Login Required"'})
+    return flask.redirect(next or flask.url_for("user"))
+
+
+@app.route('/user', methods=['GET'])
+def user():
+    user = flogin.current_user
+    return flask.jsonify({
+        'id': user.get_id(),
+        'name': user.name,
+        'is_active': user.is_active(),
+        'is_anonymous': user.is_anonymous()
+    })
+
+
+@app.route('/logout')
+def logout():
+    flogin.logout_user()
+    next = flask.request.args.get('next')
+    return flask.redirect(next or flask.url_for("user"))
 
 
 @app.route("/job", methods=['GET'])
@@ -235,6 +345,7 @@ def job_data(job_id):
 
 
 @app.route("/job/<job_id>/resubmit", methods=['POST'])
+@flogin.login_required
 def resubmit_job(job_id):
     """Resubmit a job that failed.
 

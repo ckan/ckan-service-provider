@@ -71,6 +71,15 @@ class TestWeb():
     def teardown_class(cls):
         cls.fake_ckan.kill()
 
+    def login(self, username, password):
+        return app.post('/login', data=dict(
+            username=username,
+            password=password
+        ), follow_redirects=True)
+
+    def logout(self):
+        return app.get('/logout', follow_redirects=True)
+
     def test_status(self):
         rv = app.get('/status')
         assert_equal(json.loads(rv.data), dict(version=0.1,
@@ -457,6 +466,7 @@ class TestWeb():
                                u'metadata': {}})
 
     def test_resubmit_sync(self):
+        self.login('testadmin', 'testpass')
         rv = app.post('/job/failedjob',
                       data=json.dumps({"job_type": "echo", "data": ">ping"}),
                       content_type='application/json')
