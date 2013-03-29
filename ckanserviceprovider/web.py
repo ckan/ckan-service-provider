@@ -406,7 +406,9 @@ def job(job_id=None):
         available job types.
     :type job_type: string
     :param api_key: An API key that is needed to execute the job. This could
-        be a CKAN API key that is needed to write any data.
+        be a CKAN API key that is needed to write any data. The key will also be
+        used to administer jobs. If you don't want to use a real API key, you can
+        provide a random string that you keep secure.
     :type api_key: string
     :param data: Data that is send to the job as input. (Optional)
     :type data: json encodable data
@@ -464,6 +466,11 @@ def job(job_id=None):
             'Job type {} not available. Available job types are {}'
         ).format(job_type, ', '.join(job_types))
         return json.dumps({"error": error_string}), 409, headers
+
+    api_key = input.get('api_key')
+    if not api_key:
+        return json.dumps({"error": "Please provide your API key or a random "
+                           "string that you keep secure."}), 409, headers
 
     metadata = input.get('metadata', {})
     if not isinstance(metadata, dict):

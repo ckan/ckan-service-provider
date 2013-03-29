@@ -107,13 +107,16 @@ class TestWeb():
         assert_equal(json.loads(rv.data), {u'error': u'Malformed json'})
 
         rv = app.post('/job',
-                      data=json.dumps({"data": {"time": 5}}),
+                      data=json.dumps({
+                          "api_key": 42,
+                          "data": {"time": 5}}),
                       content_type='application/json')
         assert_equal(json.loads(rv.data), {u'error': u'Please specify a job '
                                            'type'})
 
         rv = app.post('/job',
                       data=json.dumps({"job_type": "moo",
+                                       "api_key": 42,
                                        "data": {"time": 5}}),
                       content_type='application/json')
         assert_equal(json.loads(rv.data), {u'error': u'Job type moo not available.'
@@ -122,6 +125,14 @@ class TestWeb():
 
         rv = app.post('/job',
                       data=json.dumps({"job_type": "example",
+                                       "data": {"time": 5}}),
+                      content_type='application/json')
+        assert_equal(json.loads(rv.data), {u'error': u'Please provide your API key '
+                                           'or a random string that you keep secure.'})
+
+        rv = app.post('/job',
+                      data=json.dumps({"job_type": "example",
+                                       "api_key": 42,
                                        "data": {"time": 5},
                                        "foo": 42}),
                       content_type='application/json')
@@ -133,6 +144,7 @@ class TestWeb():
         # good job
         rv = app.post('/job',
                       data=json.dumps({"job_type": "example",
+                                       "api_key": 42,
                                        "data": {"time": 0.1}}),
                       content_type='application/json')
 
@@ -141,6 +153,7 @@ class TestWeb():
         # good job with name
         rv = app.post('/job/moo',
                       data=json.dumps({"job_type": "example",
+                                       "api_key": 42,
                                        "data": {"time": 0.1}}),
                       content_type='application/json')
 
@@ -163,6 +176,7 @@ class TestWeb():
         # bad job with same name
         rv = app.post('/job/moo',
                       data=json.dumps({"job_type": "example",
+                                       "api_key": 42,
                                        "data": {"time": 0.1}}),
                       content_type='application/json')
 
@@ -172,7 +186,10 @@ class TestWeb():
 
         # bad job missing the time param
         rv = app.post('/job/missing_time',
-                      data=json.dumps({"job_type": "example", "data": {}}),
+                      data=json.dumps({
+                                      "job_type": "example",
+                                      "api_key": 42,
+                                      "data": {}}),
                       content_type='application/json')
 
         assert json.loads(rv.data) == {"job_id": "missing_time"}, \
@@ -181,6 +198,7 @@ class TestWeb():
         # bad job missing the time param
         rv = app.post('/job/exception',
                       data=json.dumps({"job_type": "example",
+                                       "api_key": 42,
                                        "data": {"time": "not_a_time"}}),
                       content_type='application/json')
 
@@ -237,6 +255,7 @@ class TestWeb():
         rv = app.post(
             '/job/with_result',
             data=json.dumps({"job_type": "example",
+                             "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": {'key': 'value'},
                              "result_url": "http://0.0.0.0:9091/result",
@@ -247,6 +266,7 @@ class TestWeb():
         rv = app.post(
             '/job/with_bad_result',
             data=json.dumps({"job_type": "example",
+                             "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": {'key': 'value'},
                              "result_url": "http://0.0.0.0:9091/resul",
@@ -313,6 +333,7 @@ class TestWeb():
         rv = app.post(
             '/job/with_bad_metadata',
             data=json.dumps({"job_type": "example",
+                             "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": "meta",
                              "result_url": "http//0.0.0.0:9091/result",
@@ -327,6 +348,7 @@ class TestWeb():
         rv = app.post(
             '/job/with_bad_result',
             data=json.dumps({"job_type": "example",
+                             "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": "meta",
                              "result_url": "ht//0.0.0.0:9091/resul",
@@ -344,6 +366,7 @@ class TestWeb():
         rv = app.post(
             '/job/misfire',
             data=json.dumps({"job_type": "example",
+                             "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": {"moon": "moon",
                                           "nested": {"nested": "nested"},
@@ -378,6 +401,7 @@ class TestWeb():
                       data=json.dumps({"metadata": {"key": "value",
                                                     "moo": "moo"},
                                        "job_type": "echo_raw",
+                                       "api_key": 42,
                                        "data": "ping"}),
                       content_type='application/json')
         assert rv.data == 'ginp'
@@ -388,7 +412,9 @@ class TestWeb():
                       data=json.dumps({"metadata": {"key": "value",
                                                     "moo": "moo",
                                                     "mimetype": "text/csv"},
-                                       "job_type": "echo", "data": "ping"}),
+                                       "job_type": "echo",
+                                       "api_key": 42,
+                                       "data": "ping"}),
                       content_type='application/json')
 
         return_data = json.loads(rv.data)
@@ -419,14 +445,18 @@ class TestWeb():
         assert 'text/csv' in rv.content_type, rv.content_type
 
         rv = app.post('/job/echobasic',
-                      data=json.dumps({"job_type": "echo", "data": "ping"}),
+                      data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
+                                       "data": "ping"}),
                       content_type='application/json')
 
         return_data = json.loads(rv.data)
         assert_equal(return_data, {u'error': u'job_id echobasic already exists'})
 
         rv = app.post('/job/echoknownbad',
-                      data=json.dumps({"job_type": "echo", "data": ">ping"}),
+                      data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
+                                       "data": ">ping"}),
                       content_type='application/json')
         assert_equal(rv.status_code, 200)
         return_data = json.loads(rv.data)
@@ -442,13 +472,16 @@ class TestWeb():
                                u'metadata': {}})
 
         rv = app.post('/job/echounknownbad',
-                      data=json.dumps({"job_type": "echo", "data": 1}),
+                      data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
+                                       "data": 1}),
                       content_type='application/json')
         return_data = json.loads(rv.data)
         assert 'AttributeError' in return_data['error']
 
         rv = app.post('/job/echobad_url',
                       data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
                                        "data": "moo",
                                        "result_url": "http://bad_url"}),
                       content_type='application/json')
@@ -468,7 +501,9 @@ class TestWeb():
     def test_resubmit_sync(self):
         self.login('testadmin', 'testpass')
         rv = app.post('/job/failedjob',
-                      data=json.dumps({"job_type": "echo", "data": ">ping"}),
+                      data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
+                                       "data": ">ping"}),
                       content_type='application/json')
         assert_equal(rv.status_code, 200)
         return_data = json.loads(rv.data)
