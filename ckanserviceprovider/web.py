@@ -184,6 +184,8 @@ def check_auth(username, password):
 def login():
     """ Log in as administrator
 
+    You can use wither basic auth or form based login (via POST).
+
     :param username: The administrator's username
     :type username: string
     :param password: The administrator's password
@@ -226,6 +228,19 @@ def login():
 
 @app.route('/user', methods=['GET'])
 def user():
+    """ Show information about the active user
+
+    :rtype: A dictionary with the following keys
+    :param id: User id
+    :type id: int
+    :param name: User name
+    :type name: string
+    :param is_active: Whether the user is currently active
+    :type is_active: bool
+    :param is_anonymous: The anonymous user is the default user if you
+        are not logged in
+    :type is_anonymous: bool
+    """
     user = flogin.current_user
     return flask.jsonify({
         'id': user.get_id(),
@@ -237,6 +252,8 @@ def user():
 
 @app.route('/logout')
 def logout():
+    """ Log out the active user
+    """
     flogin.logout_user()
     next = flask.request.args.get('next')
     return flask.redirect(next or flask.url_for("user"))
