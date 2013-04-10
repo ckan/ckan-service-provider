@@ -7,6 +7,9 @@ import jobs
 # check whether jobs have been imported properly
 assert(jobs.echo)
 
+# for gunicorn
+app = web.app
+
 
 def serve():
     web.configure()
@@ -27,7 +30,7 @@ def main():
             Then, after a second or so, nothing continued to happen."''')
 
     argparser.add_argument('config', metavar='CONFIG', type=file,
-                       help='configuration file')
+                           help='configuration file')
     args = argparser.parse_args()
 
     here = os.path.dirname(os.path.abspath(__file__))

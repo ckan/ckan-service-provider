@@ -13,6 +13,7 @@ import apscheduler.events as events
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
+from werkzeug.contrib.fixers import ProxyFix
 
 import db
 import util
@@ -645,6 +646,8 @@ def get_metadata(job_id):
             value = json.loads(value)
         metadata[row['key']] = value
     return metadata
+
+app.wsgi_app = ProxyFix(app.wsgi_app)
 
 
 def run():
