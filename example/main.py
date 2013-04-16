@@ -7,9 +7,6 @@ import jobs
 # check whether jobs have been imported properly
 assert(jobs.echo)
 
-# for gunicorn
-app = web.app
-
 
 def serve():
     web.configure()
