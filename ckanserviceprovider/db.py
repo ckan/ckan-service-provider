@@ -28,8 +28,12 @@ def make_task_table():
                           sa.Column('requested_timestamp', sa.DateTime),
                           sa.Column('finished_timestamp', sa.DateTime),
                           sa.Column('sent_data', sa.UnicodeText),
+                          # callback url
                           sa.Column('result_url', sa.UnicodeText),
+                          # CKAN API key
                           sa.Column('api_key', sa.UnicodeText),
+                          # Key to administer job
+                          sa.Column('job_key', sa.UnicodeText)
                           )
 
     metadata_table = sa.Table('metadata', metadata,

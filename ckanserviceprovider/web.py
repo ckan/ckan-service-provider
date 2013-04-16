@@ -304,7 +304,7 @@ def job_list():
 
 
 @app.route("/job/<job_id>", methods=['GET'])
-def job_status(job_id):
+def job_status(job_id, show_job_key=False):
     """Show a specific job.
 
     **Results:**
@@ -314,7 +314,7 @@ def job_status(job_id):
     :type status: string
     :param sent_data: Input data for job
     :type sent_data: json encodable data
-    :param job_id: Id of job
+    :param job_id: An identifier for the job
     :type job_id: string
     :param result_url: Callback url
     :type result_url: url string
@@ -337,6 +337,8 @@ def job_status(job_id):
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     job_status.pop('api_key', None)
+    if not show_job_key:
+        job_status.pop('job_key', None)
     return flask.jsonify(job_status)
 
 
@@ -356,6 +358,8 @@ def job_data(job_id):
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
+    if not has_valid_job_key(job_status) and not flogin.current_user.is_authenticated():
+        return flogin.current_app.login_manager.unauthorized()
     if job_status['error']:
         return json.dumps({'error': job_status['error']}), 409, headers
     content_type = job_status['metadata'].get('mimetype')
@@ -363,7 +367,6 @@ def job_data(job_id):
 
 
 @app.route("/job/<job_id>/resubmit", methods=['POST'])
-@flogin.login_required
 def resubmit_job(job_id):
     """Resubmit a job that failed.
 
@@ -380,6 +383,10 @@ def resubmit_job(job_id):
                        db.jobs_table.c.job_id == job_id)).first()
     if not job:
         return json.dumps({"error": ('job_id not found')}), 404, headers
+
+    if not has_valid_job_key(job) and not flogin.current_user.is_authenticated():
+        return flogin.current_app.login_manager.unauthorized()
+
     if job['status'] != 'error':
         return json.dumps({"error": (
             'Cannot resubmit job with status {}'.format(
@@ -391,17 +398,18 @@ def resubmit_job(job_id):
         'metadata': get_metadata(job_id)
     }
     syncronous_job = sync_types.get(job['job_type'])
+    # job_key is not required and should be checked before sending a job
     if syncronous_job:
-        return run_syncronous_job(syncronous_job, job_id, input, True)
+        return run_syncronous_job(syncronous_job, job_id, None, input, True)
     else:
         asyncronous_job = async_types.get(job['job_type'])
-        return run_asyncronous_job(asyncronous_job, job_id, input, True)
+        return run_asyncronous_job(asyncronous_job, job_id, None, input, True)
 
 
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
 def job(job_id=None):
-    """Sumbit a job. If no id is provided, a random id will be generated.
+    """Submit a job. If no id is provided, a random id will be generated.
 
     :param job_type: Which kind of job should be run. Has to be one of the
         available job types.
@@ -422,7 +430,11 @@ def job(job_id=None):
 
     **Results:**
 
-    See :http:get:`/job/<job_id>`
+    :rtype: A dictionary with the following keys
+    :param job_id: An identifier for the job
+    :type job_id: string
+    :param job_key: A key that is required to view and administer the job
+    :type job_key: string
 
     :statuscode 200: no error
     :statuscode 409: an error occurred
@@ -430,6 +442,9 @@ def job(job_id=None):
     """
     if not job_id:
         job_id = str(uuid.uuid4())
+
+    # key required for job administration
+    job_key = str(uuid.uuid4())
 
     ############# ERROR CHECKING ################
     try:
@@ -481,17 +496,17 @@ def job(job_id=None):
 
     syncronous_job = sync_types.get(job_type)
     if syncronous_job:
-        return run_syncronous_job(syncronous_job, job_id, input)
+        return run_syncronous_job(syncronous_job, job_id, job_key, input)
     else:
         asyncronous_job = async_types.get(job_type)
-        return run_asyncronous_job(asyncronous_job, job_id, input)
+        return run_asyncronous_job(asyncronous_job, job_id, job_key, input)
 
 
-def run_syncronous_job(job, job_id, input, resubmitted=False):
+def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
     # resubmitted jobs do not have to be stored
     try:
         if not resubmitted:
-            store_job(job_id, input)
+            store_job(job_id, job_key, input)
     except sa.exc.IntegrityError, e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
@@ -525,27 +540,27 @@ def run_syncronous_job(job, job_id, input, resubmitted=False):
                                           'post to result_url')
         update_job(job_id, update_dict)
 
-    return job_status(job_id)
+    return job_status(job_id=job_id, show_job_key=True)
 
 
-def run_asyncronous_job(job, job_id, input, resubmitted=False):
-    # resubmitted jobs do not have to be stored
+def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
     if not scheduler.running:
         scheduler.start()
 
     try:
+        # resubmitted jobs do not have to be stored
         if not resubmitted:
-            store_job(job_id, input)
+            store_job(job_id, job_key, input)
     except sa.exc.IntegrityError, e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
 
     scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
 
-    return flask.jsonify(job_id=job_id)
+    return job_status(job_id=job_id, show_job_key=True)
 
 
-def store_job(job_id, input):
+def store_job(job_id, job_key, input):
     metadata = input.get('metadata', {})
 
     conn = db.engine.connect()
@@ -558,7 +573,8 @@ def store_job(job_id, input):
             requested_timestamp=datetime.datetime.now(),
             sent_data=json.dumps(input.get('data', {})),
             result_url=input.get('result_url'),
-            api_key=input.get('api_key'))
+            api_key=input.get('api_key')),
+            job_key=job_key
         )
         inserts = []
         for key, value in metadata.items():
@@ -580,6 +596,11 @@ def store_job(job_id, input):
         raise
     finally:
         conn.close()
+
+
+def has_valid_job_key(job):
+    job_key = flask.request.headers.get('Authorization')
+    return job['job_key'] == job_key
 
 
 def update_job(job_id, update_dict):

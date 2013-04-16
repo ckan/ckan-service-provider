@@ -20,7 +20,9 @@ setup(name='ckanserviceprovider',
             APScheduler
             Flask
             SQLAlchemy
-            requests'''
+            requests
+            flask-admin
+            flask-login'''
       ],
       entry_points="""
       # -*- Entry points: -*-

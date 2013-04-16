@@ -157,7 +157,7 @@ class TestWeb():
                                        "data": {"time": 0.1}}),
                       content_type='application/json')
 
-        assert json.loads(rv.data) == {"job_id": "moo"}, json.loads(rv.data)
+        assert json.loads(rv.data)['job_id'] == "moo", json.loads(rv.data)
 
         rv = app.get('/job/moo')
 
@@ -192,7 +192,7 @@ class TestWeb():
                                       "data": {}}),
                       content_type='application/json')
 
-        assert json.loads(rv.data) == {"job_id": "missing_time"}, \
+        assert json.loads(rv.data)['job_id'] == "missing_time", \
             json.loads(rv.data)
 
         # bad job missing the time param
@@ -202,7 +202,7 @@ class TestWeb():
                                        "data": {"time": "not_a_time"}}),
                       content_type='application/json')
 
-        assert json.loads(rv.data) == {"job_id": "exception"}, \
+        assert json.loads(rv.data)['job_id'] == "exception", \
             json.loads(rv.data)
 
         # after sleeping for 0.2 seconds, jobs should now be complete
@@ -309,9 +309,10 @@ class TestWeb():
                                                'last_request').content)
         last_request['data'].pop('requested_timestamp')
         last_request['data'].pop('finished_timestamp')
+        last_request['data'].pop('job_key')
 
         assert last_request[u'headers'][u'Content-Type'] == u'application/json'
-        assert last_request[u'data'] == {
+        assert_equal(last_request[u'data'], {
                     "status": "complete",
                     "sent_data": {"time": 0.1},
                     "job_id": "with_result",
@@ -321,7 +322,7 @@ class TestWeb():
                     "error": None,
                     "data": "Slept for 0.1 seconds.",
                     "metadata": {'key': 'value'}
-                    }, last_request
+                    })
 
     def test_missing_job_id(self):
         rv = app.get('/job/not_there')
@@ -420,6 +421,7 @@ class TestWeb():
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
+        job_key = return_data.pop('job_key')
 
         assert_equal(return_data, {u'status': u'complete',
                                u'sent_data': u'ping',
@@ -439,7 +441,8 @@ class TestWeb():
 
         assert_equal(return_data, job_status_data)
 
-        rv = app.get('/job/echobasic/data')
+        headers = {'Authorization': job_key}
+        rv = app.get('/job/echobasic/data', headers=headers)
         assert_equal(rv.status_code, 200)
         assert_equal(rv.data, u'>ping')
         assert 'text/csv' in rv.content_type, rv.content_type
@@ -462,6 +465,7 @@ class TestWeb():
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
+        return_data.pop('job_key')
         assert_equal(return_data, {u'status': u'error',
                                u'sent_data': u'>ping',
                                u'job_id': u'echoknownbad',
@@ -488,6 +492,7 @@ class TestWeb():
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
+        return_data.pop('job_key')
         assert_equal(return_data, {u'status': u'complete',
                                u'sent_data': u'moo',
                                u'job_id': u'echobad_url',
@@ -524,6 +529,16 @@ class TestWeb():
         return_data = json.loads(rv.data)
         # status should still be error
         assert_equal(return_data['status'], u'error')
+
+        self.logout()
+
+        # not authenticated
+        rv = app.post('/job/failedjob',
+                      data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
+                                       "data": ">ping"}),
+                      content_type='application/json')
+        assert_equal(rv.status_code, 409)
 
     def test_z_test_list(self):
         #has z because needs some data to be useful
