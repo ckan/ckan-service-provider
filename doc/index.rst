@@ -3,6 +3,13 @@ CKAN Service Provider
 
 A simple flask app that makes functions available as synchronous or asynchronous jobs.
 
+Routes
+------
+
+.. autoflask:: ckanserviceprovider.web:app
+   :undoc-static:
+   :include-empty-docstring:
+
 Add a job
 ---------
 
@@ -19,10 +26,4 @@ Just decorate your function and it will become available as a job::
           raise Exception('serious exception')
       return '>' + input['data']
 
-
-Routes
-------
-
-.. autoflask:: ckanserviceprovider.web:app
-   :undoc-static:
-   :include-empty-docstring:
+Expected job errors should be raised as `util.JobError`.
