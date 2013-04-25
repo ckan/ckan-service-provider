@@ -71,6 +71,9 @@ class TestWeb():
     def teardown_class(cls):
         cls.fake_ckan.kill()
 
+    def teardown(self):
+        self.logout()
+
     def login(self, username, password):
         return app.post('/login', data=dict(
             username=username,
@@ -159,6 +162,7 @@ class TestWeb():
 
         assert json.loads(rv.data)['job_id'] == "moo", json.loads(rv.data)
 
+        self.login('testadmin', 'testpass')
         rv = app.get('/job/moo')
 
         job_status_data = json.loads(rv.data)
@@ -269,12 +273,12 @@ class TestWeb():
                              "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": {'key': 'value'},
-                             "result_url": "http://0.0.0.0:9091/resul",
-                             "api_key": "key"}),
+                             "result_url": "http://0.0.0.0:9091/resul"}),
             content_type='application/json')
 
         time.sleep(0.5)
 
+        self.login('testadmin', 'testpass')
         rv = app.get('/job/with_bad_result')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
@@ -330,6 +334,25 @@ class TestWeb():
         error = json.loads(rv.data)
         assert error == {u'error': u'job_id not found'}
 
+    def test_not_authorized_to_view_job(self):
+        rv = app.post(
+            '/job/one_job',
+            data=json.dumps({"job_type": "echo",
+                             "api_key": 42}),
+            content_type='application/json')
+        assert rv.status_code == 200, rv.status
+        job_status_data = json.loads(rv.data)
+        job_key = job_status_data['job_key']
+        rv = app.get('/job/one_job')
+
+        assert rv.status_code == 403, rv.status
+        error = json.loads(rv.data)
+        assert error == {u'error': u'not authorized'}
+
+        headers = {'Authorization': job_key}
+        rv = app.get('/job/one_job', headers=headers)
+        assert rv.status_code == 200, rv.status
+
     def test_bad_metadata(self):
         rv = app.post(
             '/job/with_bad_metadata',
@@ -337,8 +360,7 @@ class TestWeb():
                              "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": "meta",
-                             "result_url": "http//0.0.0.0:9091/result",
-                             "api_key": "key"}),
+                             "result_url": "http//0.0.0.0:9091/result"}),
             content_type='application/json')
 
         return_value = json.loads(rv.data)
@@ -352,8 +374,7 @@ class TestWeb():
                              "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": "meta",
-                             "result_url": "ht//0.0.0.0:9091/resul",
-                             "api_key": "key"}),
+                             "result_url": "ht//0.0.0.0:9091/resul"}),
             content_type='application/json')
 
         return_value = json.loads(rv.data)
@@ -377,6 +398,7 @@ class TestWeb():
 
         time.sleep(0.5)
 
+        self.login('testadmin', 'testpass')
         rv = app.get('/job/misfire')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
@@ -434,7 +456,9 @@ class TestWeb():
                                              "moo": "moo",
                                              "mimetype": "text/csv"}})
 
+        self.login('testadmin', 'testpass')
         rv = app.get('/job/echobasic')
+        assert rv.status_code == 200, rv.status
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
@@ -443,7 +467,7 @@ class TestWeb():
 
         headers = {'Authorization': job_key}
         rv = app.get('/job/echobasic/data', headers=headers)
-        assert_equal(rv.status_code, 200)
+        assert rv.status_code == 200, rv.status
         assert_equal(rv.data, u'>ping')
         assert 'text/csv' in rv.content_type, rv.content_type
 
@@ -461,7 +485,7 @@ class TestWeb():
                                        "api_key": 42,
                                        "data": ">ping"}),
                       content_type='application/json')
-        assert_equal(rv.status_code, 200)
+        assert rv.status_code == 200, rv.status
         return_data = json.loads(rv.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
@@ -510,14 +534,14 @@ class TestWeb():
                                        "api_key": 42,
                                        "data": ">ping"}),
                       content_type='application/json')
-        assert_equal(rv.status_code, 200)
+        assert rv.status_code == 200, rv.status
         return_data = json.loads(rv.data)
         assert_equal(return_data['status'], u'error')
 
         rv = app.post('/job/non_existent/resubmit',
                       data=json.dumps({}),
                       content_type='application/json')
-        assert_equal(rv.status_code, 404)
+        assert rv.status_code == 404, rv.status
         return_data = json.loads(rv.data)
         assert_equal(return_data['error'], "job_id not found")
 
@@ -525,7 +549,7 @@ class TestWeb():
                       data=json.dumps({}),
                       content_type='application/json')
         print rv.data
-        assert_equal(rv.status_code, 200)
+        assert rv.status_code == 200, rv.status
         return_data = json.loads(rv.data)
         # status should still be error
         assert_equal(return_data['status'], u'error')
@@ -538,14 +562,16 @@ class TestWeb():
                                        "api_key": 42,
                                        "data": ">ping"}),
                       content_type='application/json')
-        assert_equal(rv.status_code, 409)
+        assert rv.status_code == 409, rv.status
 
     def test_z_test_list(self):
         #has z because needs some data to be useful
 
+        self.login('testadmin', 'testpass')
+
         rv = app.get('/job')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 12, return_data['list']
+        assert len(return_data['list']) == 13, return_data['list']
 
         rv = app.get('/job?_limit=1')
         return_data = json.loads(rv.data)

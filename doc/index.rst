@@ -10,6 +10,13 @@ Routes
    :undoc-static:
    :include-empty-docstring:
 
+Administration
+--------------
+
+To view the results of a job or resubmit it, the job key, thet is returned when a job is created,
+is needed. Alternatively, you can log in as admin or provide the secure key. The credentials for
+the admin user and the secure key stored in the settings file.
+
 Add a job
 ---------
 

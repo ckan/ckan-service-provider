@@ -229,7 +229,7 @@ def login():
 
 @app.route('/user', methods=['GET'])
 def user():
-    """ Show information about the active user
+    """ Show information about the current user
 
     :rtype: A dictionary with the following keys
     :param id: User id
@@ -304,7 +304,7 @@ def job_list():
 
 
 @app.route("/job/<job_id>", methods=['GET'])
-def job_status(job_id, show_job_key=False):
+def job_status(job_id, show_job_key=False, ignore_auth=False):
     """Show a specific job.
 
     **Results:**
@@ -330,12 +330,15 @@ def job_status(job_id, show_job_key=False):
     :type finished_timestamp: timestamp
 
     :statuscode 200: no error
+    :statuscode 403: not authorized to view the job's data
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     """
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
+    if not ignore_auth and not is_authorized(job_status):
+        return json.dumps({'error': 'not authorized'}), 403, headers
     job_status.pop('api_key', None)
     if not show_job_key:
         job_status.pop('job_key', None)
@@ -352,58 +355,19 @@ def job_data(job_id):
     :rtype: string
 
     :statuscode 200: no error
+    :statuscode 403: not authorized to view the job's data
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     """
     job_status = get_job_status(job_id)
     if not job_status:
         return json.dumps({'error': 'job_id not found'}), 404, headers
-    if not has_valid_job_key(job_status) and not flogin.current_user.is_authenticated():
-        return flogin.current_app.login_manager.unauthorized()
+    if not is_authorized(job_status):
+        return json.dumps({'error': 'not authorized'}), 403, headers
     if job_status['error']:
         return json.dumps({'error': job_status['error']}), 409, headers
     content_type = job_status['metadata'].get('mimetype')
     return flask.Response(job_status['data'], mimetype=content_type)
-
-
-@app.route("/job/<job_id>/resubmit", methods=['POST'])
-def resubmit_job(job_id):
-    """Resubmit a job that failed.
-
-    **Results:**
-
-    See :http:post:`/job/<job_id>`
-
-    :statuscode 200: no error
-    :statuscode 404: job id not found
-    :statuscode 409: an error occurred
-    """
-    conn = db.engine.connect()
-    job = conn.execute(db.jobs_table.select().where(
-                       db.jobs_table.c.job_id == job_id)).first()
-    if not job:
-        return json.dumps({"error": ('job_id not found')}), 404, headers
-
-    if not has_valid_job_key(job) and not flogin.current_user.is_authenticated():
-        return flogin.current_app.login_manager.unauthorized()
-
-    if job['status'] != 'error':
-        return json.dumps({"error": (
-            'Cannot resubmit job with status {}'.format(
-                job['status']))}), 409, headers
-    input = {
-        'data': json.loads(job['sent_data']),
-        'job_type': job['job_type'],
-        'api_key': job['api_key'],
-        'metadata': get_metadata(job_id)
-    }
-    syncronous_job = sync_types.get(job['job_type'])
-    # job_key is not required and should be checked before sending a job
-    if syncronous_job:
-        return run_syncronous_job(syncronous_job, job_id, None, input, True)
-    else:
-        asyncronous_job = async_types.get(job['job_type'])
-        return run_asyncronous_job(asyncronous_job, job_id, None, input, True)
 
 
 @app.route("/job/<job_id>", methods=['POST'])
@@ -502,6 +466,47 @@ def job(job_id=None):
         return run_asyncronous_job(asyncronous_job, job_id, job_key, input)
 
 
+@app.route("/job/<job_id>/resubmit", methods=['POST'])
+def resubmit_job(job_id):
+    """Resubmit a job that failed.
+
+    **Results:**
+
+    See :http:post:`/job/<job_id>`
+
+    :statuscode 200: no error
+    :statuscode 403: not authorized to resubmit
+    :statuscode 404: job id not found
+    :statuscode 409: an error occurred
+    """
+    conn = db.engine.connect()
+    job = conn.execute(db.jobs_table.select().where(
+                       db.jobs_table.c.job_id == job_id)).first()
+    if not job:
+        return json.dumps({"error": ('job_id not found')}), 404, headers
+
+    if not is_authorized(job):
+        return json.dumps({'error': 'not authorized'}), 403, headers
+
+    if job['status'] != 'error':
+        return json.dumps({"error": (
+            'Cannot resubmit job with status {}'.format(
+                job['status']))}), 409, headers
+    input = {
+        'data': json.loads(job['sent_data']),
+        'job_type': job['job_type'],
+        'api_key': job['api_key'],
+        'metadata': get_metadata(job_id)
+    }
+    syncronous_job = sync_types.get(job['job_type'])
+    # job_key is not required and should be checked before sending a job
+    if syncronous_job:
+        return run_syncronous_job(syncronous_job, job_id, None, input, True)
+    else:
+        asyncronous_job = async_types.get(job['job_type'])
+        return run_asyncronous_job(asyncronous_job, job_id, None, input, True)
+
+
 def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
     # resubmitted jobs do not have to be stored
     try:
@@ -540,7 +545,7 @@ def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
                                           'post to result_url')
         update_job(job_id, update_dict)
 
-    return job_status(job_id=job_id, show_job_key=True)
+    return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
 
 def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
@@ -557,7 +562,7 @@ def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
 
     scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
 
-    return job_status(job_id=job_id, show_job_key=True)
+    return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
 
 def store_job(job_id, job_key, input):
@@ -598,8 +603,12 @@ def store_job(job_id, job_key, input):
         conn.close()
 
 
-def has_valid_job_key(job):
+def is_authorized(job):
+    if flogin.current_user.is_authenticated():
+        return True
     job_key = flask.request.headers.get('Authorization')
+    if job_key == app.config.get('SECRET_KEY'):
+        return True
     return job['job_key'] == job_key
 
 

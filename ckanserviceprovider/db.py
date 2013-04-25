@@ -28,7 +28,7 @@ def make_task_table():
                           sa.Column('requested_timestamp', sa.DateTime),
                           sa.Column('finished_timestamp', sa.DateTime),
                           sa.Column('sent_data', sa.UnicodeText),
-                          # callback url
+                          # Callback url
                           sa.Column('result_url', sa.UnicodeText),
                           # CKAN API key
                           sa.Column('api_key', sa.UnicodeText),
