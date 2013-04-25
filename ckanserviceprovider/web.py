@@ -264,6 +264,16 @@ def logout():
 def job_list():
     """List all jobs.
 
+    :param _limit: maximum number of jobs to show (default 100)
+    :type _limit: int
+    :param _offset: how many jobs to skip before showin the first one (default 0)
+    :type _offset: int
+    :param _status: filter jobs by status (pending, complete, error, running)
+    :type _status: string
+
+    Also, you can filter the jobs by their metadata. Use the metadata key
+    as parameter key and the value as value.
+
     :rtype: A list of job ids
     """
     args = dict((key, value) for key, value in flask.request.args.items())
@@ -310,7 +320,7 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     **Results:**
 
     :rtype: A dictionary with the following keys
-    :param status: Status of job (complete, error, running)
+    :param status: Status of job (pending, complete, error, running)
     :type status: string
     :param sent_data: Input data for job
     :type sent_data: json encodable data
