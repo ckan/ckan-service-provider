@@ -85,11 +85,13 @@ class TestWeb():
 
     def test_status(self):
         rv = app.get('/status')
-        assert_equal(json.loads(rv.data), dict(version=0.1,
-                                               job_types=['example',
-                                                          'echo_raw',
-                                                          'echo'],
-                                               name='testing'))
+        status_data = json.loads(rv.data)
+        status_data.pop('stats')
+        assert_equal(status_data, dict(version=0.1,
+                                       job_types=['example',
+                                                  'echo_raw',
+                                                  'echo'],
+                                       name='testing'))
 
     def test_content_type(self):
         # make sure that we get json

@@ -23,6 +23,7 @@ import default_settings
 #to be filled by sync async decorators
 sync_types = {}
 async_types = {}
+job_statuses = ['pending', 'complete', 'error', 'running']
 
 app = flask.Flask(__name__)
 scheduler = apscheduler.Scheduler()
@@ -166,10 +167,19 @@ def status():
     :type name: string
     """
     job_types = async_types.keys() + sync_types.keys()
+
+    counts = {}
+    for job_status in job_statuses:
+        counts[job_status] = db.engine.execute(
+            db.jobs_table.count()
+            .where(db.jobs_table.c.status == job_status)
+        ).first()[0]
+
     return flask.jsonify(
         version=0.1,
         job_types=job_types,
-        name=app.config.get('NAME', 'example')
+        name=app.config.get('NAME', 'example'),
+        stats=counts
     )
 
 
@@ -344,15 +354,15 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     """
-    job_status = get_job_status(job_id)
-    if not job_status:
+    job_dict = get_job(job_id)
+    if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
-    if not ignore_auth and not is_authorized(job_status):
+    if not ignore_auth and not is_authorized(job_dict):
         return json.dumps({'error': 'not authorized'}), 403, headers
-    job_status.pop('api_key', None)
+    job_dict.pop('api_key', None)
     if not show_job_key:
-        job_status.pop('job_key', None)
-    return flask.jsonify(job_status)
+        job_dict.pop('job_key', None)
+    return flask.jsonify(job_dict)
 
 
 @app.route("/job/<job_id>/data", methods=['GET'])
@@ -369,15 +379,15 @@ def job_data(job_id):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     """
-    job_status = get_job_status(job_id)
-    if not job_status:
+    job_dict = get_job(job_id)
+    if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
-    if not is_authorized(job_status):
+    if not is_authorized(job_dict):
         return json.dumps({'error': 'not authorized'}), 403, headers
-    if job_status['error']:
-        return json.dumps({'error': job_status['error']}), 409, headers
-    content_type = job_status['metadata'].get('mimetype')
-    return flask.Response(job_status['data'], mimetype=content_type)
+    if job_dict['error']:
+        return json.dumps({'error': job_dict['error']}), 409, headers
+    content_type = job_dict['metadata'].get('mimetype')
+    return flask.Response(job_dict['data'], mimetype=content_type)
 
 
 @app.route("/job/<job_id>", methods=['POST'])
@@ -630,11 +640,11 @@ def update_job(job_id, update_dict):
 
 def send_result(job_id):
     ''' Send results to where requested. '''
-    job_status = get_job_status(job_id)
-    result_url = job_status.get('result_url')
+    job_dict = get_job(job_id)
+    result_url = job_dict.get('result_url')
     if not result_url:
         return True
-    api_key = job_status.pop('api_key', None)
+    api_key = job_dict.pop('api_key', None)
     headers = {'Content-Type': 'application/json'}
     if api_key:
         if ':' in api_key:
@@ -645,7 +655,7 @@ def send_result(job_id):
 
     try:
         result = requests.post(result_url,
-                               data=json.dumps(job_status),
+                               data=json.dumps(job_dict),
                                headers=headers)
     except requests.ConnectionError as conne:
         return False
@@ -653,7 +663,7 @@ def send_result(job_id):
     return result.status_code == requests.codes.ok
 
 
-def get_job_status(job_id):
+def get_job(job_id):
     result_dict = {}
     result = db.engine.execute(db.jobs_table.select()
                                .where(db.jobs_table.c.job_id == job_id)
