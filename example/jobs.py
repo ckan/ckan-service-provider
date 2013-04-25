@@ -23,3 +23,8 @@ def async_echo(task_id, input):
     if input['data'].startswith('#'):
         raise Exception('serious exception')
     return '>' + input['data']
+
+
+@job.async
+def async_ping(task_id, input):
+    return "ping"
