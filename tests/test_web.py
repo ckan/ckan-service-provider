@@ -25,6 +25,8 @@ def echo(task_id, input):
         raise util.JobError('Do not start message with >')
     if input['data'].startswith('#'):
         raise Exception('Something went totally wrong')
+    #if input['data'].startswith('&'):
+    #    util.logger.warn('Just a warning')
     return '>' + input['data']
 
 
@@ -47,6 +49,11 @@ def example(task_id, input):
 
     time.sleep(input['data']['time'])
     return 'Slept for ' + str(input['data']['time']) + ' seconds.'
+
+
+@job.async
+def log(task_id, input):
+    util.logger.warn('Just a warning')
 
 
 class TestWeb():
@@ -89,6 +96,7 @@ class TestWeb():
         status_data.pop('stats')
         assert_equal(status_data, dict(version=0.1,
                                        job_types=['example',
+                                                  'log',
                                                   'echo_raw',
                                                   'echo'],
                                        name='testing'))
@@ -126,14 +134,13 @@ class TestWeb():
                       content_type='application/json')
         assert_equal(json.loads(rv.data), {u'error': u'Job type moo not available.'
                                            ' Available job types are '
-                                           'example, echo_raw, echo'})
+                                           'example, log, echo_raw, echo'})
 
         rv = app.post('/job',
                       data=json.dumps({"job_type": "example",
                                        "data": {"time": 5}}),
                       content_type='application/json')
-        assert_equal(json.loads(rv.data), {u'error': u'Please provide your API key '
-                                           'or a random string that you keep secure.'})
+        assert_equal(json.loads(rv.data), {u'error': u'Please provide your API key.'})
 
         rv = app.post('/job',
                       data=json.dumps({"job_type": "example",
@@ -177,7 +184,8 @@ class TestWeb():
                                    u'error': None,
                                    u'data': None,
                                    u'metadata': {},
-                                   'result_url': None}, job_status_data
+                                   u'logs': [],
+                                   u'result_url': None}, job_status_data
 
         # bad job with same name
         rv = app.post('/job/moo',
@@ -225,7 +233,8 @@ class TestWeb():
                                    u'error': None, u'data':
                                    u'Slept for 0.1 seconds.',
                                    u'metadata': {},
-                                   'result_url': None}, job_status_data
+                                   u'logs': [],
+                                   u'result_url': None}, job_status_data
 
         # job with known error
         rv = app.get('/job/missing_time')
@@ -239,7 +248,8 @@ class TestWeb():
                                    u'error': u'time not in input',
                                    u'data': None,
                                    u'metadata': {},
-                                   'result_url': None}, job_status_data
+                                   u'logs': [],
+                                   u'result_url': None}, job_status_data
 
         # job with unexpected error
         rv = app.get('/job/exception')
@@ -253,7 +263,8 @@ class TestWeb():
                                    u'job_type': u'example',
                                    u'data': None,
                                    u'metadata': {},
-                                   'result_url': None}, job_status_data
+                                   u'logs': [],
+                                   u'result_url': None}, job_status_data
         assert 'TypeError' in error
 
     def test_asyncronous_post_with_return_url(self):
@@ -293,7 +304,8 @@ class TestWeb():
                                              ' unable to post to result_url',
                                    u'data': u'Slept for 0.1 seconds.',
                                    u'metadata': {'key': 'value'},
-                                   'result_url': "http://0.0.0.0:9091/resul"},\
+                                   u'logs': [],
+                                   u'result_url': "http://0.0.0.0:9091/resul"},\
             job_status_data
 
         rv = app.get('/job/with_result')
@@ -307,7 +319,8 @@ class TestWeb():
                                    u'error': None,
                                    u'data': u'Slept for 0.1 seconds.',
                                    u'metadata': {'key': 'value'},
-                                   'result_url': "http://0.0.0.0:9091/"
+                                   u'logs': [],
+                                   u'result_url': "http://0.0.0.0:9091/"
                                                  "result"}, \
             job_status_data
 
@@ -327,7 +340,8 @@ class TestWeb():
                                   "result",
                     "error": None,
                     "data": "Slept for 0.1 seconds.",
-                    "metadata": {'key': 'value'}
+                    "metadata": {'key': 'value'},
+                    "logs": [],
                     })
 
     def test_missing_job_id(self):
@@ -405,7 +419,7 @@ class TestWeb():
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'error',
+        assert_equal(job_status_data, {u'status': u'error',
                                    u'sent_data': {u'time': 0.1},
                                    u'job_id': u'misfire',
                                    u'job_type': u'example',
@@ -413,11 +427,11 @@ class TestWeb():
                                    u'error': u'Job delayed too long, '
                                              'service full',
                                    u'data': None,
+                                   u'logs': [],
                                    u'metadata': {"key": "value",
                                                  "moon": "moon",
                                                  "nested": {"nested":
-                                                            "nested"}}}, \
-            job_status_data
+                                                            "nested"}}})
         web.scheduler.misfire_grace_time = 3600
 
     def test_syncronous_raw_post(self):
@@ -454,6 +468,7 @@ class TestWeb():
                                u'result_url': None,
                                u'error': None,
                                u'data': u'>ping',
+                               u'logs': [],
                                u'metadata': {"key": "value",
                                              "moo": "moo",
                                              "mimetype": "text/csv"}})
@@ -499,6 +514,7 @@ class TestWeb():
                                u'result_url': None,
                                u'error': u'Do not start message with >',
                                u'data': None,
+                               u'logs': [],
                                u'metadata': {}})
 
         rv = app.post('/job/echounknownbad',
@@ -527,7 +543,34 @@ class TestWeb():
                                u'error': u'Process completed but unable to'
                                           ' post to result_url',
                                u'data': u'>moo',
+                               u'logs': [],
                                u'metadata': {}})
+
+    def test_logging(self):
+        rv = app.post('/job/log',
+                      data=json.dumps({"metadata": {},
+                                       "job_type": "log",
+                                       "api_key": 42,
+                                       "data": "&ping"}),
+                      content_type='application/json')
+
+        time.sleep(0.2)
+
+        self.login('testadmin', 'testpass')
+        rv = app.get('/job/log')
+
+        return_data = json.loads(rv.data)
+        logs = return_data['logs']
+        assert len(logs) == 1, logs
+        log = logs[0]
+        log.pop('timestamp')
+        assert_equal(log, {
+            u'level': u'WARNING',
+            u'name': u'ckanserviceprovider.util',
+            u'module': u'test_web',
+            u'funcName': u'log',
+            u'lineno': 56,
+            u'message': u'Just a warning'})
 
     def test_resubmit_sync(self):
         self.login('testadmin', 'testpass')
@@ -573,7 +616,7 @@ class TestWeb():
 
         rv = app.get('/job')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 13, return_data['list']
+        assert len(return_data['list']) == 14, return_data['list']
 
         rv = app.get('/job?_limit=1')
         return_data = json.loads(rv.data)
@@ -581,7 +624,7 @@ class TestWeb():
 
         rv = app.get('/job?_status=complete')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 7, return_data['list']
+        assert len(return_data['list']) == 8, return_data['list']
 
         rv = app.get('/job?key=value')
         return_data = json.loads(rv.data)
