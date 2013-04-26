@@ -469,8 +469,7 @@ def job(job_id=None):
 
     api_key = input.get('api_key')
     if not api_key:
-        return json.dumps({"error": "Please provide your API key or a random "
-                           "string that you keep secure."}), 409, headers
+        return json.dumps({"error": "Please provide your API key."}), 409, headers
 
     metadata = input.get('metadata', {})
     if not isinstance(metadata, dict):
