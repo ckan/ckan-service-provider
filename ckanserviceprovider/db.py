@@ -4,6 +4,7 @@ engine = None
 metadata = None
 jobs_table = None
 metadata_table = None
+logs_table = None
 
 
 def setup_db(app):
@@ -16,7 +17,7 @@ def setup_db(app):
 
 
 def make_task_table():
-    global jobs_table, metadata_table
+    global jobs_table, metadata_table, logs_table
     jobs_table = sa.Table('jobs', metadata,
                           sa.Column('job_id', sa.UnicodeText,
                                     primary_key=True),
@@ -45,3 +46,15 @@ def make_task_table():
                                         index=True),
                               sa.Column('type', sa.UnicodeText),
                               )
+
+    logs_table = sa.Table('logs', metadata,
+                          sa.Column('job_id', sa.UnicodeText,
+                                    index=True),
+                          sa.Column('timestamp', sa.DateTime),
+                          sa.Column('message', sa.UnicodeText),
+                          sa.Column('name', sa.UnicodeText),
+                          sa.Column('level', sa.UnicodeText),
+                          sa.Column('module', sa.UnicodeText),
+                          sa.Column('funcName', sa.UnicodeText),
+                          sa.Column('lineno', sa.Integer)
+                          )

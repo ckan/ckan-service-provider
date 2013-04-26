@@ -133,6 +133,34 @@ def job_listener(event):
             'Process completed but unable to post to result_url')
         update_job(job_id, update_dict)
 
+    if util.queue.empty():
+        return
+
+    conn = db.engine.connect()
+    trans = conn.begin()
+    try:
+        logs = []
+        while not util.queue.empty():
+            record = util.queue.get()
+            logs.append({
+                'job_id': event.job.args[0],
+                'timestamp': datetime.datetime.now(),
+                'name': record.name,
+                'message': record.getMessage(),
+                'level': record.levelname,
+                'module': record.module,
+                'funcName': record.funcName,
+                'lineno': record.lineno
+            })
+        if logs:
+            conn.execute(db.logs_table.insert(), logs)
+            trans.commit()
+    except Exception:
+        trans.rollback()
+        raise
+    finally:
+        conn.close()
+
 
 headers = {'Content-Type': 'application/json'}
 
@@ -323,6 +351,15 @@ def job_list():
     return flask.jsonify(list=listing)
 
 
+class DatetimeJsonEncoder(json.JSONEncoder):
+    # Custon JSON encoder
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+
+        return json.JSONEncoder.default(self, obj)
+
+
 @app.route("/job/<job_id>", methods=['GET'])
 def job_status(job_id, show_job_key=False, ignore_auth=False):
     """Show a specific job.
@@ -362,7 +399,8 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     job_dict.pop('api_key', None)
     if not show_job_key:
         job_dict.pop('job_key', None)
-    return flask.jsonify(job_dict)
+    return flask.Response(json.dumps(job_dict, cls=DatetimeJsonEncoder),
+                          mimetype='application/json')
 
 
 @app.route("/job/<job_id>/data", methods=['GET'])
@@ -681,6 +719,7 @@ def get_job(job_id):
         else:
             result_dict[field] = unicode(value)
     result_dict['metadata'] = get_metadata(job_id)
+    result_dict['logs'] = get_logs(job_id)
     return result_dict
 
 
@@ -695,6 +734,18 @@ def get_metadata(job_id):
             value = json.loads(value)
         metadata[row['key']] = value
     return metadata
+
+
+def get_logs(job_id):
+    results = db.engine.execute(db.logs_table.select()
+                                .where(db.logs_table.c.job_id ==
+                                       job_id)).fetchall()
+    results = map(dict, results)
+
+    def remove_job_id(d):
+        d.pop('job_id')
+        return d
+    return map(remove_job_id, results)
 
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
