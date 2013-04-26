@@ -1,14 +1,12 @@
-import logging
+import time
 
 import ckanserviceprovider.job as job
 import ckanserviceprovider.util as util
 
-logging.basicConfig()
-
 
 @job.sync
 def echo(task_id, input):
-    logging.warning('foo')
+    util.logger.warning('foo')
     if input['data'].startswith('>'):
         raise util.JobError('do not start message with >')
     if input['data'].startswith('#'):
@@ -27,4 +25,5 @@ def async_echo(task_id, input):
 
 @job.async
 def async_ping(task_id, input):
+    util.logger.warn('ping')
     return "ping"
