@@ -2,6 +2,7 @@ import os
 import subprocess
 import json
 import time
+import logging
 from nose.tools import assert_equal
 
 import requests
@@ -20,7 +21,7 @@ app = web.app.test_client()
 
 
 @job.sync
-def echo(task_id, input):
+def echo(task_id, input, queue):
     if input['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
     if input['data'].startswith('#'):
@@ -31,7 +32,7 @@ def echo(task_id, input):
 
 
 @job.sync
-def echo_raw(task_id, input):
+def echo_raw(task_id, input, queue):
     if input['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
 
@@ -43,7 +44,7 @@ def echo_raw(task_id, input):
 
 
 @job.async
-def example(task_id, input):
+def example(task_id, input, queue):
     if 'time' not in input['data']:
         raise util.JobError('time not in input')
 
@@ -52,8 +53,12 @@ def example(task_id, input):
 
 
 @job.async
-def log(task_id, input):
-    util.logger.warn('Just a warning')
+def log(task_id, input, queue):
+    handler = util.QueuingHandler(queue)
+    logger = logging.getLogger(__name__)
+    logger.addHandler(handler)
+
+    logger.warn('Just a warning')
 
 
 class TestWeb():
@@ -566,10 +571,10 @@ class TestWeb():
         log.pop('timestamp')
         assert_equal(log, {
             u'level': u'WARNING',
-            u'name': u'ckanserviceprovider.util',
+            u'name': u'tests.test_web',
             u'module': u'test_web',
             u'funcName': u'log',
-            u'lineno': 56,
+            u'lineno': 61,
             u'message': u'Just a warning'})
 
     def test_resubmit_sync(self):

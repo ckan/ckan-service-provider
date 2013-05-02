@@ -4,6 +4,7 @@ import sys
 import json
 import traceback
 import logging
+import Queue
 
 import flask
 import flask.ext.login as flogin
@@ -29,6 +30,9 @@ app = flask.Flask(__name__)
 scheduler = apscheduler.Scheduler()
 #Allow a day for jobs to be run otherwise drop them. Should rerun these later.
 scheduler.misfire_grace_time = 3600
+
+# for logging
+queue = Queue.Queue()
 
 
 class User(flogin.UserMixin):
@@ -82,12 +86,14 @@ def configure():
         return _users.get(name)
 
     # logging
+    loggers = [logging.getLogger('sqlalchemy'),
+               logging.getLogger('apscheduler.scheduler')]
+
     if not app.debug:
         file_handler = logging.handlers.RotatingFileHandler(
             app.config.get('LOG_FILE'),
             maxBytes=67108864, backupCount=5)
         file_handler.setLevel(logging.WARNING)
-        app.logger.addHandler(file_handler)
 
         mail_handler = logging.handlers.SMTPHandler(
             '127.0.0.1',
@@ -95,7 +101,13 @@ def configure():
             app.config.get('ADMINS', []),
             'CKAN Service Error')
         mail_handler.setLevel(logging.ERROR)
-        app.logger.addHandler(mail_handler)
+
+        for logger in [app.logger] + loggers:
+            logger.addHandler(file_handler)
+            logger.addHandler(mail_handler)
+    elif not app.testing:
+        for logger in loggers:
+            logger.addHandler(app.logger.handlers[0])
 
     app.wsgi_app = ProxyFix(app.wsgi_app)
 
@@ -149,15 +161,17 @@ def job_listener(event):
             'Process completed but unable to post to result_url')
         update_job(job_id, update_dict)
 
-    if util.queue.empty():
+    if queue.empty():
         return
 
     conn = db.engine.connect()
     trans = conn.begin()
     try:
         logs = []
-        while not util.queue.empty():
-            record = util.queue.get()
+        while not queue.empty():
+            record = queue.get()
+            app.logger.info('Got log {0} from {1}'.format(
+                record.getMessage, record.name))
             logs.append({
                 'job_id': event.job.args[0],
                 'timestamp': datetime.datetime.now(),
@@ -492,8 +506,8 @@ def job(job_id=None):
 
     # Idk why but this is needed for some libraries that
     # send malformed content types
-    if (flask.request.mimetype == ':'
-            and flask.request.content_type.lower().find('application/json') >= 0):
+    if (not input and
+            flask.request.content_type.lower().find('application/json') >= 0):
         try:
             input = json.loads(flask.request.data)
         except ValueError:
@@ -599,7 +613,7 @@ def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
 
     update_dict = {}
     try:
-        result = job(job_id, input)
+        result = job(job_id, input, queue)
         update_dict['status'] = 'complete'
 
         if hasattr(result, "__call__"):
@@ -641,7 +655,7 @@ def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
 
-    scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
+    scheduler.add_job(RunNowTrigger(), job, [job_id, input, queue], None)
 
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 

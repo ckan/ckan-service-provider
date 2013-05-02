@@ -1,7 +1,4 @@
 import logging
-import Queue
-
-queue = Queue.Queue()
 
 
 class JobError(Exception):
@@ -9,14 +6,12 @@ class JobError(Exception):
     pass
 
 
-class CapturingHandler(logging.Handler):
+class QueuingHandler(logging.Handler):
+    '''A handler that enqueues logging messages so that they
+    can be sent to another process.'''
     def __init__(self, queue):
         logging.Handler.__init__(self)
         self.queue = queue
 
     def emit(self, record):
         self.queue.put(record)
-
-handler = CapturingHandler(queue)
-logger = logging.getLogger(__name__)
-logger.addHandler(handler)

@@ -26,15 +26,19 @@ Just decorate your function and it will become available as a job::
   import ckanserviceprovider.util as util
 
   @job.sync
-  def echo(task_id, input):
+  def echo(task_id, input, queue):
+      handler = util.QueuingHandler(queue)
+      logger = logging.getLogger(__name__)
+      logger.addHandler(handler)
+
       if input['data'].startswith('>'):
           raise util.JobError('do not start message with >')
       if input['data'].startswith('#'):
           raise Exception('serious exception')
       if input['data'].startswith('&'):
-        util.logger.warn('just a warning')
+        logger.warn('just a warning')
       return '>' + input['data']
 
-Expected job errors should be raised as `util.JobError`. For logging, use ``util.logger`` to make
-sure that the logs are properly saved.
+Expected job errors should be raised as `util.JobError`. For logging, use the handler ``util.QueuingHandler`` to make
+sure that the logs are properly saved. The queue is provided as an argument.
 
