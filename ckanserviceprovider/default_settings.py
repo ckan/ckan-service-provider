@@ -14,5 +14,12 @@ SQLALCHEMY_ECHO = False
 HOST = '0.0.0.0'
 PORT = 8000
 
+# logging
+
+FROM_EMAIL = 'server-error@example.com'
+ADMINS = ['yourname@example.com']  # where to send emails
+
+LOG_FILE = '/tmp/ckan_service.log'
+
 # project configuration
 NAME = 'service'

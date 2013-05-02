@@ -3,6 +3,7 @@ import datetime
 import sys
 import json
 import traceback
+import logging
 
 import flask
 import flask.ext.login as flogin
@@ -79,6 +80,22 @@ def configure():
         userid = int(userid)
         name = _names.get(userid)
         return _users.get(name)
+
+    # logging
+    if not app.debug:
+        file_handler = logging.handlers.RotatingFileHandler(
+            app.config.get('LOG_FILE'),
+            maxBytes=67108864, backupCount=5)
+        file_handler.setLevel(logging.WARNING)
+        app.logger.addHandler(file_handler)
+
+        mail_handler = logging.handlers.SMTPHandler(
+            '127.0.0.1',
+            app.config.get('FROM_EMAIL'),
+            app.config.get('ADMINS', []),
+            'CKAN Service Error')
+        mail_handler.setLevel(logging.ERROR)
+        app.logger.addHandler(mail_handler)
 
     app.wsgi_app = ProxyFix(app.wsgi_app)
 
