@@ -10,12 +10,12 @@ assert(jobs.echo)
 
 def serve():
     web.configure()
-    web.run()
+    web.app.run(web.app.config.get('HOST'), web.app.config.get('PORT'))
 
 
 def serve_test():
     web.configure()
-    return web.test_client()
+    return web.app.test_client()
 
 
 def main():
@@ -30,10 +30,7 @@ def main():
                            help='configuration file')
     args = argparser.parse_args()
 
-    here = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(os.path.dirname(here), args.config.name)
-
-    os.environ['JOB_CONFIG'] = config_path
+    os.environ['JOB_CONFIG'] = os.path.abspath(args.config.name)
     serve()
 
 if __name__ == '__main__':

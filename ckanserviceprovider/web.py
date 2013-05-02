@@ -17,7 +17,6 @@ from werkzeug.contrib.fixers import ProxyFix
 
 import db
 import util
-
 import default_settings
 
 #to be filled by sync async decorators
@@ -81,7 +80,7 @@ def configure():
         name = _names.get(userid)
         return _users.get(name)
 
-    #Admin(app)
+    app.wsgi_app = ProxyFix(app.wsgi_app)
 
 
 class RunNowTrigger(object):
@@ -747,12 +746,7 @@ def get_logs(job_id):
         return d
     return map(remove_job_id, results)
 
-app.wsgi_app = ProxyFix(app.wsgi_app)
 
-
-def run():
-    return app.run(port=int(app.config.get('PORT', 5000)))
-
-
-def test_client():
-    return app.test_client()
+if __name__ == '__main__':
+    configure()
+    app.run(app.config.get('HOST'), app.config.get('PORT'))
