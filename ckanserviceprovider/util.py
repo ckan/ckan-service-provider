@@ -2,7 +2,6 @@ import logging
 import Queue
 
 queue = Queue.Queue()
-logging.basicConfig()
 
 
 class JobError(Exception):
