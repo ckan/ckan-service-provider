@@ -490,7 +490,15 @@ def job(job_id=None):
     except werkzeug.exceptions.BadRequest, e:
         return json.dumps({"error": "Malformed json"}), 409, headers
 
-    if not flask.request.json:
+    # Idk why but this is needed for some libraries that
+    # send malformed content types
+    if (flask.request.mimetype == ':'
+            and flask.request.content_type.lower().find('application/json') >= 0):
+        try:
+            input = json.loads(flask.request.data)
+        except ValueError:
+            pass
+    if not input:
         return json.dumps({"error": ('Not recognised as json, make '
                                      'sure content type is application/'
                                      'json')}), 409, headers
