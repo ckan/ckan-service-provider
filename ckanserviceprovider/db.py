@@ -10,7 +10,8 @@ logs_table = None
 def setup_db(app):
     global engine, metadata
     engine = sa.create_engine(app.config.get('SQLALCHEMY_DATABASE_URI'),
-                              echo=app.config.get('SQLALCHEMY_ECHO'))
+                              echo=app.config.get('SQLALCHEMY_ECHO'),
+                              convert_unicode=True)
     metadata = sa.MetaData(engine)
     make_task_table()
     metadata.create_all(engine)
