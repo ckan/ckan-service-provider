@@ -117,7 +117,7 @@ def configure():
 
 
 class RunNowTrigger(object):
-    ''' custom apscheduler trigger to run job once and only
+    '''Custom apscheduler trigger to run job once and only
     once'''
     def __init__(self):
         self.run = False
@@ -135,7 +135,7 @@ class RunNowTrigger(object):
 
 
 def job_listener(event):
-    '''listens to completed job'''
+    '''Listens to completed job'''
     job_id = event.job.args[0]
     update_dict = {'finished_timestamp': datetime.datetime.now()}
 
@@ -201,12 +201,12 @@ headers = {'Content-Type': 'application/json'}
 
 @app.route("/", methods=['GET'])
 def index():
-    """Show link to documentation.
+    '''Show link to documentation.
 
     :rtype: A dictionary with the following keys
     :param help: Help text
     :type help: string
-    """
+    '''
     return flask.jsonify(
         help="""
         Get help at:
@@ -216,7 +216,7 @@ def index():
 
 @app.route("/status", methods=['GET'])
 def status():
-    """Show version, available job types and name of service.
+    '''Show version, available job types and name of service.
 
     **Results:**
 
@@ -227,7 +227,9 @@ def status():
     :type job_types: list of strings
     :param name: Name of the service
     :type name: string
-    """
+    :param stats: Shows stats for jobs in queue
+    :type stats: dictionary
+    '''
     job_types = async_types.keys() + sync_types.keys()
 
     counts = {}
@@ -246,16 +248,16 @@ def status():
 
 
 def check_auth(username, password):
-    """This function is called to check if a username /
+    '''This function is called to check if a username /
     password combination is valid.
-    """
+    '''
     return (username == app.config['USERNAME'] and
             password == app.config['PASSWORD'])
 
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
-    """ Log in as administrator
+    '''Log in as administrator
 
     You can use wither basic auth or form based login (via POST).
 
@@ -263,7 +265,7 @@ def login():
     :type username: string
     :param password: The administrator's password
     :type password: string
-    """
+    '''
     username = None
     password = None
     next = flask.request.args.get('next')
@@ -301,7 +303,7 @@ def login():
 
 @app.route('/user', methods=['GET'])
 def user():
-    """ Show information about the current user
+    '''Show information about the current user
 
     :rtype: A dictionary with the following keys
     :param id: User id
@@ -313,7 +315,7 @@ def user():
     :param is_anonymous: The anonymous user is the default user if you
         are not logged in
     :type is_anonymous: bool
-    """
+    '''
     user = flogin.current_user
     return flask.jsonify({
         'id': user.get_id(),
@@ -334,7 +336,7 @@ def logout():
 
 @app.route("/job", methods=['GET'])
 def job_list():
-    """List all jobs.
+    '''List all jobs.
 
     :param _limit: maximum number of jobs to show (default 100)
     :type _limit: int
@@ -347,7 +349,7 @@ def job_list():
     as parameter key and the value as value.
 
     :rtype: A list of job ids
-    """
+    '''
     args = dict((key, value) for key, value in flask.request.args.items())
     limit = args.pop('_limit', 100)
     offset = args.pop('_offset', 0)
@@ -396,7 +398,7 @@ class DatetimeJsonEncoder(json.JSONEncoder):
 
 @app.route("/job/<job_id>", methods=['GET'])
 def job_status(job_id, show_job_key=False, ignore_auth=False):
-    """Show a specific job.
+    '''Show a specific job.
 
     **Results:**
 
@@ -424,7 +426,7 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     :statuscode 403: not authorized to view the job's data
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
-    """
+    '''
     job_dict = get_job(job_id)
     if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -439,7 +441,7 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
 
 @app.route("/job/<job_id>/data", methods=['GET'])
 def job_data(job_id):
-    """Get the raw data that the job returned. The mimetype
+    '''Get the raw data that the job returned. The mimetype
     will be the value provided in the metdata for the key ``mimetype``.
 
     **Results:**
@@ -450,7 +452,7 @@ def job_data(job_id):
     :statuscode 403: not authorized to view the job's data
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
-    """
+    '''
     job_dict = get_job(job_id)
     if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -465,7 +467,7 @@ def job_data(job_id):
 @app.route("/job/<job_id>", methods=['POST'])
 @app.route("/job", methods=['POST'])
 def job(job_id=None):
-    """Submit a job. If no id is provided, a random id will be generated.
+    '''Submit a job. If no id is provided, a random id will be generated.
 
     :param job_type: Which kind of job should be run. Has to be one of the
         available job types.
@@ -495,7 +497,7 @@ def job(job_id=None):
     :statuscode 200: no error
     :statuscode 409: an error occurred
 
-    """
+    '''
     if not job_id:
         job_id = str(uuid.uuid4())
 
@@ -567,7 +569,7 @@ def job(job_id=None):
 
 @app.route("/job/<job_id>/resubmit", methods=['POST'])
 def resubmit_job(job_id):
-    """Resubmit a job that failed.
+    '''Resubmit a job that failed.
 
     **Results:**
 
@@ -577,10 +579,10 @@ def resubmit_job(job_id):
     :statuscode 403: not authorized to resubmit
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
-    """
-    conn = db.engine.connect()
-    job = conn.execute(db.jobs_table.select().where(
-                       db.jobs_table.c.job_id == job_id)).first()
+    '''
+    with db.engine.begin() as conn:
+        job = conn.execute(db.jobs_table.select().where(
+                           db.jobs_table.c.job_id == job_id)).first()
     if not job:
         return json.dumps({"error": ('job_id not found')}), 404, headers
 
@@ -702,13 +704,19 @@ def store_job(job_id, job_key, input):
         conn.close()
 
 
-def is_authorized(job):
+def is_authorized(job=None):
+    '''Returns true if the request is authorized for the job
+    if provided. If no job is provided, the user has to be admin
+    to be authorized.
+    '''
     if flogin.current_user.is_authenticated():
         return True
-    job_key = flask.request.headers.get('Authorization')
-    if job_key == app.config.get('SECRET_KEY'):
-        return True
-    return job['job_key'] == job_key
+    if job:
+        job_key = flask.request.headers.get('Authorization')
+        if job_key == app.config.get('SECRET_KEY'):
+            return True
+        return job['job_key'] == job_key
+    return False
 
 
 def update_job(job_id, update_dict):
