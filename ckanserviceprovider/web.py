@@ -174,8 +174,8 @@ def job_listener(event):
         logs = []
         while not queue.empty():
             record = queue.get()
-            app.logger.info('Got log {0} from {1}'.format(
-                record.getMessage, record.name))
+            app.logger.info('Got log "{0}" from {1}'.format(
+                record.getMessage(), record.name))
             logs.append({
                 'job_id': event.job.args[0],
                 'timestamp': datetime.datetime.now(),
@@ -437,6 +437,37 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
         job_dict.pop('job_key', None)
     return flask.Response(json.dumps(job_dict, cls=DatetimeJsonEncoder),
                           mimetype='application/json')
+
+
+@app.route("/job/<job_id>", methods=['DELETE'])
+def job_delete(job_id):
+    '''Deletes the job together with its logs and metadata.
+
+    :param job_id: An identifier for the job
+    :type job_id: string
+
+    :statuscode 200: no error
+    :statuscode 403: not authorized to delete the job
+    :statuscode 404: the job could not be found
+    :statuscode 409: an error occurred
+    '''
+    conn = db.engine.connect()
+    job = get_job(job_id)
+    if not job:
+        return json.dumps({'error': 'job_id not found'}), 404, headers
+    if not is_authorized(job):
+        return json.dumps({'error': 'not authorized'}), 403, headers
+    trans = conn.begin()
+    try:
+        conn.execute(db.jobs_table.delete().where(
+                     db.jobs_table.c.job_id == job_id))
+        trans.commit()
+        return json.dumps({'success': True}), 200, headers
+    except Exception, e:
+        trans.rollback()
+        return json.dumps({'error': str(e)}), 409, headers
+    finally:
+        conn.close()
 
 
 @app.route("/job/<job_id>/data", methods=['GET'])

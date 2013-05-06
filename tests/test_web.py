@@ -86,7 +86,7 @@ class TestWeb():
     def teardown(self):
         self.logout()
 
-    def login(self, username, password):
+    def login(self, username='testadmin', password='testpass'):
         return app.post('/login', data=dict(
             username=username,
             password=password
@@ -176,7 +176,7 @@ class TestWeb():
 
         assert json.loads(rv.data)['job_id'] == "moo", json.loads(rv.data)
 
-        self.login('testadmin', 'testpass')
+        self.login()
         rv = app.get('/job/moo')
 
         job_status_data = json.loads(rv.data)
@@ -296,7 +296,7 @@ class TestWeb():
 
         time.sleep(0.5)
 
-        self.login('testadmin', 'testpass')
+        self.login()
         rv = app.get('/job/with_bad_result')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
@@ -419,7 +419,7 @@ class TestWeb():
 
         time.sleep(0.5)
 
-        self.login('testadmin', 'testpass')
+        self.login()
         rv = app.get('/job/misfire')
         job_status_data = json.loads(rv.data)
         job_status_data.pop('requested_timestamp')
@@ -478,7 +478,7 @@ class TestWeb():
                                              "moo": "moo",
                                              "mimetype": "text/csv"}})
 
-        self.login('testadmin', 'testpass')
+        self.login()
         rv = app.get('/job/echobasic')
         assert rv.status_code == 200, rv.status
         job_status_data = json.loads(rv.data)
@@ -561,8 +561,13 @@ class TestWeb():
 
         time.sleep(0.2)
 
-        self.login('testadmin', 'testpass')
+        self.login('testadmin', 'wrong')
         rv = app.get('/job/log')
+        assert rv.status_code == 403, rv.status
+
+        self.login()
+        rv = app.get('/job/log')
+        assert rv.status_code == 200, rv.status
 
         return_data = json.loads(rv.data)
         logs = return_data['logs']
@@ -577,8 +582,27 @@ class TestWeb():
             u'lineno': 61,
             u'message': u'Just a warning'})
 
+    def test_delete_job(self):
+        rv = app.post('/job/to_be_deleted',
+                      data=json.dumps({"metadata": {"foo": "bar"},
+                                       "job_type": "echo",
+                                       "api_key": 42,
+                                       "data": "&ping"}),
+                      content_type='application/json')
+        assert rv.status_code == 200, rv.status
+
+        rv = app.delete('/job/to_be_deleted')
+        assert rv.status_code == 403, rv.status
+
+        self.login()
+        rv = app.delete('/job/to_be_deleted')
+        assert rv.status_code == 200, rv.status
+
+        rv = app.delete('/job/to_be_deleted')
+        assert rv.status_code == 404, rv.status
+
     def test_resubmit_sync(self):
-        self.login('testadmin', 'testpass')
+        self.login()
         rv = app.post('/job/failedjob',
                       data=json.dumps({"job_type": "echo",
                                        "api_key": 42,
@@ -617,7 +641,7 @@ class TestWeb():
     def test_z_test_list(self):
         #has z because needs some data to be useful
 
-        self.login('testadmin', 'testpass')
+        self.login()
 
         rv = app.get('/job')
         return_data = json.loads(rv.data)

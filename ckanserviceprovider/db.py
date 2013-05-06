@@ -42,8 +42,9 @@ def make_task_table():
                           )
 
     metadata_table = sa.Table('metadata', metadata,
-                              sa.Column('job_id', sa.UnicodeText,
-                                        primary_key=True),
+                              sa.Column('job_id',
+                                        sa.ForeignKey("jobs.job_id", ondelete="CASCADE"),
+                                        nullable=False, primary_key=True),
                               sa.Column('key', sa.UnicodeText,
                                         primary_key=True),
                               sa.Column('value', sa.UnicodeText,
@@ -52,8 +53,9 @@ def make_task_table():
                               )
 
     logs_table = sa.Table('logs', metadata,
-                          sa.Column('job_id', sa.UnicodeText,
-                                    index=True),
+                          sa.Column('job_id',
+                                    sa.ForeignKey("jobs.job_id", ondelete="CASCADE"),
+                                    nullable=False),
                           sa.Column('timestamp', sa.DateTime),
                           sa.Column('message', sa.UnicodeText),
                           sa.Column('name', sa.UnicodeText),
