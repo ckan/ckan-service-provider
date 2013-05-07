@@ -630,18 +630,15 @@ class TestWeb():
 
         self.logout()
 
-        # not authenticated
-        rv = app.post('/job/failedjob',
+        rv = app.post('/job/failedjob/resubmit',
                       data=json.dumps({"job_type": "echo",
                                        "api_key": 42,
                                        "data": ">ping"}),
                       content_type='application/json')
-        assert rv.status_code == 409, rv.status
+        assert rv.status_code == 403, rv.status
 
     def test_z_test_list(self):
-        #has z because needs some data to be useful
-
-        self.login()
+        # has z because needs some data to be useful
 
         rv = app.get('/job')
         return_data = json.loads(rv.data)
@@ -668,5 +665,20 @@ class TestWeb():
         assert len(return_data['list']) == 0, return_data['list']
 
         rv = app.get('/job?key=value&moon=moon')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 0, return_data['list']
+
+    def test_zz_test_clear_all(self):
+        # has zz because it makes test_z useless
+
+        rv = app.delete('/job')
+        assert rv.status_code == 403, rv.status
+
+        self.login()
+
+        rv = app.delete('/job')
+        assert rv.status_code == 200, rv.status
+
+        rv = app.get('/job?days=0')
         return_data = json.loads(rv.data)
         assert len(return_data['list']) == 0, return_data['list']

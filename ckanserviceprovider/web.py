@@ -470,6 +470,34 @@ def job_delete(job_id):
         conn.close()
 
 
+@app.route("/job", methods=['DELETE'])
+def clear_jobs(days=10):
+    '''Clear old jobs
+
+    :param days: Jobs for how many days should be kept (default: 10)
+    :type days: integer
+
+    :statuscode 200: no error
+    :statuscode 403: not authorized to delete jobs
+    :statuscode 409: an error occurred
+    '''
+    if not is_authorized():
+        return json.dumps({'error': 'not authorized'}), 403, headers
+    conn = db.engine.connect()
+    trans = conn.begin()
+    date = datetime.datetime.now() - datetime.timedelta(days=days)
+    try:
+        conn.execute(db.jobs_table.delete().where(
+                     db.jobs_table.c.finished_timestamp < date))
+        trans.commit()
+        return json.dumps({'success': True}), 200, headers
+    except Exception, e:
+        trans.rollback()
+        return json.dumps({'error': str(e)}), 409, headers
+    finally:
+        conn.close()
+
+
 @app.route("/job/<job_id>/data", methods=['GET'])
 def job_data(job_id):
     '''Get the raw data that the job returned. The mimetype
@@ -598,7 +626,7 @@ def job(job_id=None):
         return run_asyncronous_job(asyncronous_job, job_id, job_key, input)
 
 
-@app.route("/job/<job_id>/resubmit", methods=['POST'])
+@app.route("/job/<job_id>/resubmit", methods=['POST', 'GET'])
 def resubmit_job(job_id):
     '''Resubmit a job that failed.
 
@@ -641,12 +669,12 @@ def resubmit_job(job_id):
 
 def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
     # resubmitted jobs do not have to be stored
-    try:
-        if not resubmitted:
+    if not resubmitted:
+        try:
             store_job(job_id, job_key, input)
-    except sa.exc.IntegrityError, e:
-        error_string = 'job_id {} already exists'.format(job_id)
-        return json.dumps({"error": error_string}), 409, headers
+        except sa.exc.IntegrityError, e:
+            error_string = 'job_id {} already exists'.format(job_id)
+            return json.dumps({"error": error_string}), 409, headers
 
     update_dict = {}
     try:
@@ -683,14 +711,13 @@ def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
 def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
     if not scheduler.running:
         scheduler.start()
-
-    try:
-        # resubmitted jobs do not have to be stored
-        if not resubmitted:
+    if not resubmitted:
+        try:
+            # resubmitted jobs do not have to be stored
             store_job(job_id, job_key, input)
-    except sa.exc.IntegrityError, e:
-        error_string = 'job_id {} already exists'.format(job_id)
-        return json.dumps({"error": error_string}), 409, headers
+        except sa.exc.IntegrityError:
+            error_string = 'job_id {} already exists'.format(job_id)
+            return json.dumps({"error": error_string}), 409, headers
 
     scheduler.add_job(RunNowTrigger(), job, [job_id, input, queue], None)
 
