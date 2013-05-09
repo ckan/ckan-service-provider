@@ -53,6 +53,12 @@ def example(task_id, input, queue):
 
 
 @job.async
+def failing(task_id, input, queue):
+    time.sleep(0.1)
+    raise util.JobError('failed')
+
+
+@job.async
 def log(task_id, input, queue):
     handler = util.QueuingHandler(queue)
     logger = logging.getLogger(__name__)
@@ -100,7 +106,8 @@ class TestWeb():
         status_data = json.loads(rv.data)
         status_data.pop('stats')
         assert_equal(status_data, dict(version=0.1,
-                                       job_types=['example',
+                                       job_types=['failing',
+                                                  'example',
                                                   'log',
                                                   'echo_raw',
                                                   'echo'],
@@ -139,7 +146,7 @@ class TestWeb():
                       content_type='application/json')
         assert_equal(json.loads(rv.data), {u'error': u'Job type moo not available.'
                                            ' Available job types are '
-                                           'example, log, echo_raw, echo'})
+                                           'failing, example, log, echo_raw, echo'})
 
         rv = app.post('/job',
                       data=json.dumps({"job_type": "example",
@@ -579,7 +586,7 @@ class TestWeb():
             u'name': u'tests.test_web',
             u'module': u'test_web',
             u'funcName': u'log',
-            u'lineno': 61,
+            u'lineno': 67,
             u'message': u'Just a warning'})
 
     def test_delete_job(self):
@@ -603,7 +610,7 @@ class TestWeb():
 
     def test_resubmit_sync(self):
         self.login()
-        rv = app.post('/job/failedjob',
+        rv = app.post('/job/failedjob_sync',
                       data=json.dumps({"job_type": "echo",
                                        "api_key": 42,
                                        "data": ">ping"}),
@@ -612,6 +619,58 @@ class TestWeb():
         return_data = json.loads(rv.data)
         assert_equal(return_data['status'], u'error')
 
+        rv = app.post('/job/failedjob_sync/resubmit',
+                      data=json.dumps({}),
+                      content_type='application/json')
+        assert rv.status_code == 200, rv.status
+        return_data = json.loads(rv.data)
+        # status should still be error
+        assert_equal(return_data['status'], u'error')
+
+    def test_resubmit_async(self):
+        self.login()
+        rv = app.post('/job/failedjob_async',
+                      data=json.dumps({"job_type": "failing",
+                                       "api_key": 42,
+                                       "data": {}}),
+                      content_type='application/json')
+        assert rv.status_code == 200, rv.status
+        return_data = json.loads(rv.data)
+        assert_equal(return_data['status'], u'pending')
+
+        time.sleep(0.2)
+
+        rv = app.get('/job/failedjob_async')
+        assert rv.status_code == 200, rv.status
+        return_data = json.loads(rv.data)
+        assert_equal(return_data['status'], u'error')
+
+        rv = app.post('/job/failedjob_async/resubmit',
+                      data=json.dumps({}),
+                      content_type='application/json')
+        assert rv.status_code == 200, rv.status
+        return_data = json.loads(rv.data)
+        assert_equal(return_data['status'], u'pending')
+
+        time.sleep(0.2)
+
+        rv = app.get('/job/failedjob_async')
+        assert rv.status_code == 200, rv.status
+        return_data = json.loads(rv.data)
+        # status should still be error after it has finished
+        assert_equal(return_data['status'], u'error')
+
+        self.logout()
+
+        # try to resubmit when not logged in
+        rv = app.post('/job/failedjob_async/resubmit',
+                      data=json.dumps({"job_type": "echo",
+                                       "api_key": 42,
+                                       "data": ">ping"}),
+                      content_type='application/json')
+        assert rv.status_code == 403, rv.status
+
+    def test_resbmit_non_existing_job_raises_404(self):
         rv = app.post('/job/non_existent/resubmit',
                       data=json.dumps({}),
                       content_type='application/json')
@@ -619,30 +678,12 @@ class TestWeb():
         return_data = json.loads(rv.data)
         assert_equal(return_data['error'], "job_id not found")
 
-        rv = app.post('/job/failedjob/resubmit',
-                      data=json.dumps({}),
-                      content_type='application/json')
-        print rv.data
-        assert rv.status_code == 200, rv.status
-        return_data = json.loads(rv.data)
-        # status should still be error
-        assert_equal(return_data['status'], u'error')
-
-        self.logout()
-
-        rv = app.post('/job/failedjob/resubmit',
-                      data=json.dumps({"job_type": "echo",
-                                       "api_key": 42,
-                                       "data": ">ping"}),
-                      content_type='application/json')
-        assert rv.status_code == 403, rv.status
-
     def test_z_test_list(self):
         # has z because needs some data to be useful
 
         rv = app.get('/job')
         return_data = json.loads(rv.data)
-        assert len(return_data['list']) == 14, return_data['list']
+        assert len(return_data['list']) == 15, return_data['list']
 
         rv = app.get('/job?_limit=1')
         return_data = json.loads(rv.data)
