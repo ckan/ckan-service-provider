@@ -639,9 +639,7 @@ def resubmit_job(job_id):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     '''
-    with db.engine.begin() as conn:
-        job = conn.execute(db.jobs_table.select().where(
-                           db.jobs_table.c.job_id == job_id)).first()
+    job = get_job(job_id)
     if not job:
         return json.dumps({"error": ('job_id not found')}), 404, headers
 
@@ -653,11 +651,15 @@ def resubmit_job(job_id):
             'Cannot resubmit job with status {}'.format(
                 job['status']))}), 409, headers
     input = {
-        'data': json.loads(job['sent_data']),
+        'data': job['sent_data'],
         'job_type': job['job_type'],
         'api_key': job['api_key'],
         'metadata': get_metadata(job_id)
     }
+    with db.engine.begin() as conn:
+        conn.execute(db.jobs_table.update().where(
+                     db.jobs_table.c.job_id == job_id).values(
+                     status='pending'))
     syncronous_job = sync_types.get(job['job_type'])
     # job_key is not required and should be checked before sending a job
     if syncronous_job:
