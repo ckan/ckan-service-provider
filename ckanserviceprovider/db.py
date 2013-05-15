@@ -58,7 +58,6 @@ def make_task_table():
                                     nullable=False),
                           sa.Column('timestamp', sa.DateTime),
                           sa.Column('message', sa.UnicodeText),
-                          sa.Column('name', sa.UnicodeText),
                           sa.Column('level', sa.UnicodeText),
                           sa.Column('module', sa.UnicodeText),
                           sa.Column('funcName', sa.UnicodeText),

@@ -60,8 +60,8 @@ def failing(task_id, input, queue):
 
 @job.async
 def log(task_id, input, queue):
-    handler = util.QueuingHandler(queue)
-    logger = logging.getLogger(__name__)
+    handler = util.QueuingHandler(queue, task_id)
+    logger = logging.Logger(task_id)
     logger.addHandler(handler)
 
     logger.warn('Just a warning')
@@ -583,7 +583,6 @@ class TestWeb():
         log.pop('timestamp')
         assert_equal(log, {
             u'level': u'WARNING',
-            u'name': u'tests.test_web',
             u'module': u'test_web',
             u'funcName': u'log',
             u'lineno': 67,

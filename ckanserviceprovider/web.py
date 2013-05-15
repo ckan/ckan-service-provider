@@ -175,13 +175,12 @@ def job_listener(event):
     try:
         logs = []
         while not queue.empty():
-            record = queue.get()
+            task_id, record = queue.get()
             app.logger.info('Got log "{0}" from {1}'.format(
                 record.getMessage(), record.name))
             logs.append({
-                'job_id': event.job.args[0],
+                'job_id': task_id,
                 'timestamp': datetime.datetime.now(),
-                'name': record.name,
                 'message': record.getMessage(),
                 'level': record.levelname,
                 'module': record.module,
