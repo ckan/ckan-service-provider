@@ -35,6 +35,8 @@ scheduler = apscheduler.Scheduler()
 #Allow a day for jobs to be run otherwise drop them. Should rerun these later.
 scheduler.misfire_grace_time = 3600
 
+app.url_map.strict_slashes = False
+
 # for logging
 queue = Queue.Queue()
 
