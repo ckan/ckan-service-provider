@@ -151,9 +151,9 @@ def job_listener(event):
             update_dict['error'] = json.dumps(event.exception.message)
         else:
             update_dict['error'] = \
-                json.dumps(traceback.format_tb(event.traceback)[-1]
+                json.dumps(traceback.format_tb(event.traceback)
                            +
-                           repr(event.exception))
+                           [repr(event.exception)])
     else:
         update_dict['status'] = 'complete'
         update_dict['data'] = json.dumps(event.retval)

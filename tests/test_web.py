@@ -277,7 +277,7 @@ class TestWeb():
                                    u'metadata': {},
                                    u'logs': [],
                                    u'result_url': None}, job_status_data
-        assert 'TypeError' in error
+        assert 'TypeError' in error[-1], error
 
     def test_asyncronous_post_with_return_url(self):
 
