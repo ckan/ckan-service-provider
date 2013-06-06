@@ -28,7 +28,7 @@ import default_settings
 #to be filled by sync async decorators
 sync_types = {}
 async_types = {}
-job_statuses = ['pending', 'complete', 'error', 'running']
+job_statuses = ['complete', 'error']
 
 app = flask.Flask(__name__)
 scheduler = apscheduler.Scheduler()
@@ -239,6 +239,7 @@ def status():
             db.jobs_table.count()
             .where(db.jobs_table.c.status == job_status)
         ).first()[0]
+    counts['pending'] = len(scheduler.get_jobs())
 
     return flask.jsonify(
         version=0.1,
@@ -343,7 +344,7 @@ def job_list():
     :type _limit: int
     :param _offset: how many jobs to skip before showin the first one (default 0)
     :type _offset: int
-    :param _status: filter jobs by status (pending, complete, error, running)
+    :param _status: filter jobs by status (complete, error)
     :type _status: string
 
     Also, you can filter the jobs by their metadata. Use the metadata key
@@ -404,7 +405,7 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     **Results:**
 
     :rtype: A dictionary with the following keys
-    :param status: Status of job (pending, complete, error, running)
+    :param status: Status of job (complete, error)
     :type status: string
     :param sent_data: Input data for job
     :type sent_data: json encodable data
