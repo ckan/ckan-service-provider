@@ -16,13 +16,13 @@ setup(name='ckanserviceprovider',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
       include_package_data=True,
       zip_safe=False,
-      install_requires=['''
-            APScheduler
-            Flask
-            SQLAlchemy
-            requests
-            flask-admin
-            flask-login'''
+      install_requires=[
+            'APScheduler',
+            'Flask',
+            'SQLAlchemy',
+            'requests',
+            'flask-admin',
+            'flask-login'
       ],
       entry_points="""
       # -*- Entry points: -*-
