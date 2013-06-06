@@ -2,6 +2,9 @@
 from __future__ import unicode_literals
 
 import logging
+import datetime
+
+import db
 
 
 class JobError(Exception):
@@ -9,13 +12,24 @@ class JobError(Exception):
     pass
 
 
-class QueuingHandler(logging.Handler):
-    '''A handler that enqueues logging messages so that they
-    can be sent to another process.'''
-    def __init__(self, queue, task_id):
+class StoringHandler(logging.Handler):
+    '''A handler that stores the logging records
+    in the database.'''
+    def __init__(self, task_id, input):
         logging.Handler.__init__(self)
         self.task_id = task_id
-        self.queue = queue
+        self.input = input
 
     def emit(self, record):
-        self.queue.put((self.task_id, record))
+        conn = db.engine.connect()
+        try:
+            conn.execute(db.logs_table.insert().values(
+                job_id=self.task_id,
+                timestamp=datetime.datetime.now(),
+                message=record.getMessage(),
+                level=record.levelname,
+                module=record.module,
+                funcName=record.funcName,
+                lineno=record.lineno))
+        finally:
+            conn.close()

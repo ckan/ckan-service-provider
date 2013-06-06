@@ -8,7 +8,6 @@ import json
 import traceback
 import logging
 import logging.handlers
-import Queue
 
 import flask
 import flask.ext.login as flogin
@@ -16,6 +15,8 @@ import flask.ext.login as flogin
 import werkzeug
 import apscheduler.scheduler as apscheduler
 import apscheduler.events as events
+import apscheduler.jobstores.sqlalchemy_store as sqlalchemy_store
+import apscheduler.jobstores.shelve_store as shelve_store
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
@@ -28,7 +29,7 @@ import default_settings
 #to be filled by sync async decorators
 sync_types = {}
 async_types = {}
-job_statuses = ['complete', 'error']
+job_statuses = ['pending', 'complete', 'error']
 
 app = flask.Flask(__name__)
 scheduler = apscheduler.Scheduler()
@@ -36,9 +37,6 @@ scheduler = apscheduler.Scheduler()
 scheduler.misfire_grace_time = 3600
 
 app.url_map.strict_slashes = False
-
-# for logging
-queue = Queue.Queue()
 
 
 class User(flogin.UserMixin):
@@ -69,6 +67,14 @@ def configure():
                            events.EVENT_JOB_EXECUTED |
                            events.EVENT_JOB_MISSED |
                            events.EVENT_JOB_ERROR)
+
+    # need this for the tests
+    try:
+        scheduler.remove_jobstore('default')
+    except KeyError:
+        pass
+    scheduler.add_jobstore(sqlalchemy_store.SQLAlchemyJobStore(
+        url=db_url), 'default')
 
     login_manager = flogin.LoginManager()
     login_manager.setup_app(app)
@@ -167,35 +173,6 @@ def job_listener(event):
             'Process completed but unable to post to result_url')
         update_job(job_id, update_dict)
 
-    if queue.empty():
-        return
-
-    conn = db.engine.connect()
-    trans = conn.begin()
-    try:
-        logs = []
-        while not queue.empty():
-            task_id, record = queue.get()
-            app.logger.info('Got log "{0}" from {1}'.format(
-                record.getMessage(), record.name))
-            logs.append({
-                'job_id': task_id,
-                'timestamp': datetime.datetime.now(),
-                'message': record.getMessage(),
-                'level': record.levelname,
-                'module': record.module,
-                'funcName': record.funcName,
-                'lineno': record.lineno
-            })
-        if logs:
-            conn.execute(db.logs_table.insert(), logs)
-            trans.commit()
-    except Exception:
-        trans.rollback()
-        raise
-    finally:
-        conn.close()
-
 
 headers = {'Content-Type': 'application/json'}
 
@@ -239,7 +216,6 @@ def status():
             db.jobs_table.count()
             .where(db.jobs_table.c.status == job_status)
         ).first()[0]
-    counts['pending'] = len(scheduler.get_jobs())
 
     return flask.jsonify(
         version=0.1,
@@ -682,7 +658,7 @@ def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
 
     update_dict = {}
     try:
-        result = job(job_id, input, queue)
+        result = job(job_id, input)
         update_dict['status'] = 'complete'
 
         if hasattr(result, "__call__"):
@@ -723,7 +699,7 @@ def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
             error_string = 'job_id {} already exists'.format(job_id)
             return json.dumps({"error": error_string}), 409, headers
 
-    scheduler.add_job(RunNowTrigger(), job, [job_id, input, queue], None)
+    scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
 
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 

@@ -26,8 +26,8 @@ Just decorate your function and it will become available as a job::
   import ckanserviceprovider.util as util
 
   @job.sync
-  def echo(task_id, input, queue):
-      handler = util.QueuingHandler(queue)
+  def echo(task_id, input):
+      handler = util.StoringHandler(task_id, input)
       logger = logging.getLogger(__name__)
       logger.addHandler(handler)
 
@@ -39,6 +39,6 @@ Just decorate your function and it will become available as a job::
         logger.warn('just a warning')
       return '>' + input['data']
 
-Expected job errors should be raised as `util.JobError`. For logging, use the handler ``util.QueuingHandler`` to make
-sure that the logs are properly saved. The queue is provided as an argument.
+Expected job errors should be raised as `util.JobError`. For logging, use the handler ``util.StoringHandler`` to make
+sure that the logs are properly saved.
 

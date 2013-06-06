@@ -21,7 +21,7 @@ app = web.app.test_client()
 
 
 @job.sync
-def echo(task_id, input, queue):
+def echo(task_id, input):
     if input['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
     if input['data'].startswith('#'):
@@ -32,7 +32,7 @@ def echo(task_id, input, queue):
 
 
 @job.sync
-def echo_raw(task_id, input, queue):
+def echo_raw(task_id, input):
     if input['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
 
@@ -44,7 +44,7 @@ def echo_raw(task_id, input, queue):
 
 
 @job.async
-def example(task_id, input, queue):
+def example(task_id, input):
     if 'time' not in input['data']:
         raise util.JobError('time not in input')
 
@@ -53,14 +53,14 @@ def example(task_id, input, queue):
 
 
 @job.async
-def failing(task_id, input, queue):
+def failing(task_id, input):
     time.sleep(0.1)
     raise util.JobError('failed')
 
 
 @job.async
-def log(task_id, input, queue):
-    handler = util.QueuingHandler(queue, task_id)
+def log(task_id, input):
+    handler = util.StoringHandler(task_id, input)
     logger = logging.Logger(task_id)
     logger.addHandler(handler)
 
