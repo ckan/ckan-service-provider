@@ -49,7 +49,7 @@ class User(flogin.UserMixin):
         return self.active
 
 
-class Anonymous(flogin.AnonymousUser):
+class Anonymous(flogin.AnonymousUserMixin):
     name = u"Anonymous"
 
 _users = None
