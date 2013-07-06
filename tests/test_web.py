@@ -677,6 +677,11 @@ class TestWeb():
         return_data = json.loads(rv.data)
         assert_equal(return_data['error'], "job_id not found")
 
+    def test_getting_job_data_for_missing_job(self):
+        self.login()
+        rv = app.get('/job/somefoo/data')
+        assert rv.status_code == 404, rv.status
+
     def test_z_test_list(self):
         # has z because needs some data to be useful
 
