@@ -550,7 +550,7 @@ def job(job_id=None):
     # Idk why but this is needed for some libraries that
     # send malformed content types
     if (not input and
-            flask.request.content_type.lower().find('application/json') >= 0):
+            'application/json' in flask.request.content_type.lower()):
         try:
             input = json.loads(flask.request.data)
         except ValueError:
@@ -779,10 +779,11 @@ def send_result(job_id):
         headers[header] = key
 
     try:
-        result = requests.post(result_url,
-                               data=json.dumps(job_dict),
-                               headers=headers)
-    except requests.ConnectionError as conne:
+        result = requests.post(
+            result_url,
+            data=json.dumps(job_dict, cls=DatetimeJsonEncoder),
+            headers=headers)
+    except requests.ConnectionError:
         return False
 
     return result.status_code == requests.codes.ok
