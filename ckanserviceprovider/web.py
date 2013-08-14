@@ -544,7 +544,7 @@ def job(job_id=None):
     ############# ERROR CHECKING ################
     try:
         input = flask.request.json
-    except werkzeug.exceptions.BadRequest, e:
+    except werkzeug.exceptions.BadRequest:
         return json.dumps({"error": "Malformed json"}), 409, headers
 
     # Idk why but this is needed for some libraries that
@@ -735,7 +735,7 @@ def store_job(job_id, job_key, input):
         if inserts:
             conn.execute(db.metadata_table.insert(), inserts)
         trans.commit()
-    except Exception, e:
+    except Exception:
         trans.rollback()
         raise
     finally:
