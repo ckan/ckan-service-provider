@@ -5,7 +5,7 @@
 
 __WORK IN PROGRESS__
 
-A prototype of the new CKAN Services framework
+A prototype of the new CKAN Services framework. Used by the [DataPusher](https://github.com/okfn/datapusher).
 
 ## Get started
 
