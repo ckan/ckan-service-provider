@@ -607,57 +607,12 @@ def job(job_id=None):
         return run_asyncronous_job(asyncronous_job, job_id, job_key, input)
 
 
-@app.route("/job/<job_id>/resubmit", methods=['POST', 'GET'])
-def resubmit_job(job_id):
-    '''Resubmit a job that failed.
-
-    **Results:**
-
-    See :http:post:`/job/<job_id>`
-
-    :statuscode 200: no error
-    :statuscode 403: not authorized to resubmit
-    :statuscode 404: job id not found
-    :statuscode 409: an error occurred
-    '''
-    job = get_job(job_id)
-    if not job:
-        return json.dumps({"error": ('job_id not found')}), 404, headers
-
-    if not is_authorized(job):
-        return json.dumps({'error': 'not authorized'}), 403, headers
-
-    if job['status'] != 'error':
-        return json.dumps({"error": (
-            'Cannot resubmit job with status {}'.format(
-                job['status']))}), 409, headers
-    input = {
-        'data': job['sent_data'],
-        'job_type': job['job_type'],
-        'api_key': job['api_key'],
-        'metadata': get_metadata(job_id)
-    }
-    with db.engine.begin() as conn:
-        conn.execute(db.jobs_table.update().where(
-                     db.jobs_table.c.job_id == job_id).values(
-                     status='pending'))
-    syncronous_job = sync_types.get(job['job_type'])
-    # job_key is not required and should be checked before sending a job
-    if syncronous_job:
-        return run_syncronous_job(syncronous_job, job_id, None, input, True)
-    else:
-        asyncronous_job = async_types.get(job['job_type'])
-        return run_asyncronous_job(asyncronous_job, job_id, None, input, True)
-
-
-def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
-    # resubmitted jobs do not have to be stored
-    if not resubmitted:
-        try:
-            store_job(job_id, job_key, input)
-        except sa.exc.IntegrityError, e:
-            error_string = 'job_id {} already exists'.format(job_id)
-            return json.dumps({"error": error_string}), 409, headers
+def run_syncronous_job(job, job_id, job_key, input):
+    try:
+        store_job(job_id, job_key, input)
+    except sa.exc.IntegrityError, e:
+        error_string = 'job_id {} already exists'.format(job_id)
+        return json.dumps({"error": error_string}), 409, headers
 
     update_dict = {}
     try:
@@ -693,16 +648,14 @@ def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
 
-def run_asyncronous_job(job, job_id, job_key, input, resubmitted=False):
+def run_asyncronous_job(job, job_id, job_key, input):
     if not scheduler.running:
         scheduler.start()
-    if not resubmitted:
-        try:
-            # resubmitted jobs do not have to be stored
-            store_job(job_id, job_key, input)
-        except sa.exc.IntegrityError:
-            error_string = 'job_id {} already exists'.format(job_id)
-            return json.dumps({"error": error_string}), 409, headers
+    try:
+        store_job(job_id, job_key, input)
+    except sa.exc.IntegrityError:
+        error_string = 'job_id {} already exists'.format(job_id)
+        return json.dumps({"error": error_string}), 409, headers
 
     scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
 
