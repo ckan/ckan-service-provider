@@ -612,15 +612,15 @@ def job(job_id=None):
             409, headers
     ############# END CHECKING ################
 
-    syncronous_job = sync_types.get(job_type)
-    if syncronous_job:
-        return run_syncronous_job(syncronous_job, job_id, job_key, input)
+    synchronous_job = sync_types.get(job_type)
+    if synchronous_job:
+        return run_synchronous_job(synchronous_job, job_id, job_key, input)
     else:
-        asyncronous_job = async_types.get(job_type)
-        return run_asyncronous_job(asyncronous_job, job_id, job_key, input)
+        asynchronous_job = async_types.get(job_type)
+        return run_asynchronous_job(asynchronous_job, job_id, job_key, input)
 
 
-def run_syncronous_job(job, job_id, job_key, input):
+def run_synchronous_job(job, job_id, job_key, input):
     try:
         store_job(job_id, job_key, input)
     except sa.exc.IntegrityError, e:
@@ -661,7 +661,7 @@ def run_syncronous_job(job, job_id, job_key, input):
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
 
-def run_asyncronous_job(job, job_id, job_key, input):
+def run_asynchronous_job(job, job_id, job_key, input):
     if not scheduler.running:
         scheduler.start()
     try:

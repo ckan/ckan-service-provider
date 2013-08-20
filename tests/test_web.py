@@ -163,7 +163,7 @@ class TestWeb():
         assert_equal(json.loads(rv.data), {u'error': u'Too many arguments. '
                                            'Extra keys are foo'})
 
-    def test_asyncronous_post(self):
+    def test_asynchronous_post(self):
 
         # good job
         rv = app.post('/job',
@@ -290,7 +290,7 @@ class TestWeb():
         job = web.get_job(job_status_data['job_id'])
         assert not job['api_key'], job
 
-    def test_asyncronous_post_with_return_url(self):
+    def test_asynchronous_post_with_return_url(self):
 
         rv = app.post(
             '/job/with_result',
@@ -460,7 +460,7 @@ class TestWeb():
                                                             "nested"}}})
         web.scheduler.misfire_grace_time = 3600
 
-    def test_syncronous_raw_post(self):
+    def test_synchronous_raw_post(self):
 
         rv = app.post('/job/echoraw',
                       data=json.dumps({"metadata": {"key": "value",
@@ -471,7 +471,7 @@ class TestWeb():
                       content_type='application/json')
         assert rv.data == 'ginp'
 
-    def test_syncronous_post(self):
+    def test_synchronous_post(self):
 
         rv = app.post('/job/echobasic',
                       data=json.dumps({"metadata": {"key": "value",
