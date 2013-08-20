@@ -452,7 +452,7 @@ def job_delete(job_id):
 
 
 @app.route("/job", methods=['DELETE'])
-def clear_jobs(days=10):
+def clear_jobs():
     '''Clear old jobs
 
     :param days: Jobs for how many days should be kept (default: 10)
@@ -464,6 +464,19 @@ def clear_jobs(days=10):
     '''
     if not is_authorized():
         return json.dumps({'error': 'not authorized'}), 403, headers
+
+    days = flask.request.args.get('days', None)
+    return _clear_jobs(days)
+
+
+def _clear_jobs(days=None):
+    if days is None:
+        days = app.config.get('KEEP_JOBS_AGE')
+    else:
+        try:
+            days = int(days)
+        except Exception as e:
+            return json.dumps({'error': str(e)}), 409, headers
     conn = db.engine.connect()
     trans = conn.begin()
     date = datetime.datetime.now() - datetime.timedelta(days=days)
@@ -472,7 +485,7 @@ def clear_jobs(days=10):
                      db.jobs_table.c.finished_timestamp < date))
         trans.commit()
         return json.dumps({'success': True}), 200, headers
-    except Exception, e:
+    except Exception as e:
         trans.rollback()
         return json.dumps({'error': str(e)}), 409, headers
     finally:
@@ -632,12 +645,12 @@ def run_syncronous_job(job, job_id, job_key, input):
         update_dict['error'] = json.dumps(traceback.format_tb(sys.exc_traceback)[-1]
                                           +
                                           repr(e))
+    finally:
+        update_dict['api_key'] = None
+        update_dict['finished_timestamp'] = datetime.datetime.now()
 
-    update_dict['api_key'] = None
-    update_dict['finished_timestamp'] = datetime.datetime.now()
-
-    api_key = get_job(job_id)['api_key']
-    update_job(job_id, update_dict)
+        api_key = get_job(job_id)['api_key']
+        update_job(job_id, update_dict)
     result_ok = send_result(job_id, api_key)
 
     if not result_ok:

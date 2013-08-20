@@ -23,3 +23,6 @@ LOG_FILE = '/tmp/ckan_service.log'
 
 # project configuration
 NAME = 'service'
+
+# days to keep when clearing
+KEEP_JOBS_AGE = 14

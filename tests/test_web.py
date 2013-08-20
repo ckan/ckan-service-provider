@@ -671,6 +671,14 @@ class TestWeb():
         rv = app.delete('/job')
         assert rv.status_code == 200, rv.status
 
-        rv = app.get('/job?days=0')
+        # doesn't delete jobs because the jobs are not old enough
+        rv = app.get('/job')
+        return_data = json.loads(rv.data)
+        assert len(return_data['list']) == 14, return_data['list']
+
+        rv = app.delete('/job?days=0')
+        assert rv.status_code == 200, rv.status
+
+        rv = app.get('/job')
         return_data = json.loads(rv.data)
         assert len(return_data['list']) == 0, return_data['list']
