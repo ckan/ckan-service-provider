@@ -164,8 +164,11 @@ def job_listener(event):
         update_dict['status'] = 'complete'
         update_dict['data'] = json.dumps(event.retval)
 
+    update_dict['api_key'] = None
+
+    api_key = get_job(job_id)['api_key']
     update_job(job_id, update_dict)
-    result_ok = send_result(job_id)
+    result_ok = send_result(job_id, api_key)
 
     if not result_ok:
         ## TODO this clobbers original error
@@ -675,10 +678,12 @@ def run_syncronous_job(job, job_id, job_key, input, resubmitted=False):
                                           +
                                           repr(e))
 
+    update_dict['api_key'] = None
     update_dict['finished_timestamp'] = datetime.datetime.now()
 
+    api_key = get_job(job_id)['api_key']
     update_job(job_id, update_dict)
-    result_ok = send_result(job_id)
+    result_ok = send_result(job_id, api_key)
 
     if not result_ok:
         update_dict['error'] = json.dumps('Process completed but unable to '
@@ -763,13 +768,19 @@ def update_job(job_id, update_dict):
                       .values(**update_dict))
 
 
-def send_result(job_id):
-    ''' Send results to where requested. '''
+def send_result(job_id, api_key=None):
+    ''' Send results to where requested.
+
+    If api_key is provided, it is used, otherwiese
+    the key from the job will be used.
+    '''
     job_dict = get_job(job_id)
     result_url = job_dict.get('result_url')
     if not result_url:
         return True
-    api_key = job_dict.pop('api_key', None)
+    api_key_from_job = job_dict.pop('api_key', None)
+    if not api_key:
+        api_key = api_key_from_job
     headers = {'Content-Type': 'application/json'}
     if api_key:
         if ':' in api_key:

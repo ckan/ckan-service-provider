@@ -172,7 +172,12 @@ class TestWeb():
                                        "data": {"time": 0.1}}),
                       content_type='application/json')
 
-        assert 'job_id' in json.loads(rv.data)
+        return_data = json.loads(rv.data)
+        assert 'job_id' in return_data
+
+        time.sleep(0.2)
+        job = web.get_job(return_data['job_id'])
+        assert not job['api_key'], job
 
         # good job with name
         rv = app.post('/job/moo',
@@ -472,6 +477,9 @@ class TestWeb():
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         job_key = return_data.pop('job_key')
+
+        job = web.get_job(return_data['job_id'])
+        assert not job['api_key'], job
 
         assert_equal(return_data, {u'status': u'complete',
                                u'sent_data': u'ping',
