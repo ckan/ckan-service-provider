@@ -115,8 +115,10 @@ def configure():
         mail_handler.setLevel(logging.ERROR)
 
         for logger in [app.logger] + loggers:
-            logger.addHandler(file_handler)
-            logger.addHandler(mail_handler)
+            if 'LOG_FILE' in app.config:
+                logger.addHandler(file_handler)
+            if 'FROM_EMAIL' in app.config:
+                logger.addHandler(mail_handler)
     elif not app.testing:
         for logger in loggers:
             logger.addHandler(app.logger.handlers[0])

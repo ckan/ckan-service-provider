@@ -16,9 +16,6 @@ PORT = 8000
 
 # logging
 
-FROM_EMAIL = 'server-error@example.com'
-ADMINS = ['yourname@example.com']  # where to send emails
-
 LOG_FILE = '/tmp/ckan_service.log'
 
 # project configuration
