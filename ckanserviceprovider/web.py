@@ -102,30 +102,35 @@ def configure():
                logging.getLogger('apscheduler.scheduler')]
 
     if not app.debug:
-        stderr_handler = logging.StreamHandler(
-            sys.stderr)
+        stderr_handler = None
+        if app.config.get('STDERR'):
+            stderr_handler = logging.StreamHandler(
+                sys.stderr)
+            stderr_handler.setLevel(logging.WARNING)
 
-        stderr_handler.setLevel(logging.WARNING)
+        file_handler = None
+        if app.config.get('LOG_FILE'):
+            file_handler = logging.handlers.RotatingFileHandler(
+                app.config.get('LOG_FILE'),
+                maxBytes=67108864, backupCount=5)
+            file_handler.setLevel(logging.WARNING)
 
-        file_handler = logging.handlers.RotatingFileHandler(
-            app.config.get('LOG_FILE'),
-            maxBytes=67108864, backupCount=5)
-        file_handler.setLevel(logging.WARNING)
-
-        mail_handler = logging.handlers.SMTPHandler(
-            '127.0.0.1',
-            app.config.get('FROM_EMAIL'),
-            app.config.get('ADMINS', []),
-            'CKAN Service Error')
-        mail_handler.setLevel(logging.ERROR)
+        mail_handler = None
+        if app.config.get('FROM_EMAIL'):
+            mail_handler = logging.handlers.SMTPHandler(
+                '127.0.0.1',
+                app.config.get('FROM_EMAIL'),
+                app.config.get('ADMINS', []),
+                'CKAN Service Error')
+            mail_handler.setLevel(logging.ERROR)
 
         for logger in [app.logger] + loggers:
-            if 'LOG_FILE' in app.config:
-                logger.addHandler(file_handler)
-            if 'FROM_EMAIL' in app.config:
-                logger.addHandler(mail_handler)
-            if 'STDERR' in app.config:
+            if stderr_handler:
                 logger.addHandler(stderr_handler)
+            if file_handler:
+                logger.addHandler(file_handler)
+            if mail_handler:
+                logger.addHandler(mail_handler)
     elif not app.testing:
         for logger in loggers:
             logger.addHandler(app.logger.handlers[0])
