@@ -284,7 +284,7 @@ def login():
         return flask.Response(
             'Could not verify your access level for that URL.\n {}'.format(error),
             401,
-            {'WWW-Authenticate': 'Basic realm="Login Required"'})
+            {str('WWW-Authenticate'): str('Basic realm="Login Required"')})
     return flask.redirect(next or flask.url_for("user"))
 
 
