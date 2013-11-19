@@ -97,20 +97,18 @@ def configure():
         name = _names.get(userid)
         return _users.get(name)
 
-    # logging
-    loggers = [logging.getLogger('sqlalchemy'),
-               logging.getLogger('apscheduler.scheduler')]
+    logger = logging.getlogger()
 
     if not app.debug:
         stderr_handler = logging.StreamHandler(
             sys.stderr)
 
-        stderr_handler.setLevel(logging.WARNING)
+        stderr_handler.setLevel(logging.INFO)
 
         file_handler = logging.handlers.RotatingFileHandler(
             app.config.get('LOG_FILE'),
             maxBytes=67108864, backupCount=5)
-        file_handler.setLevel(logging.WARNING)
+        file_handler.setLevel(logging.INFO)
 
         mail_handler = logging.handlers.SMTPHandler(
             '127.0.0.1',
@@ -119,16 +117,15 @@ def configure():
             'CKAN Service Error')
         mail_handler.setLevel(logging.ERROR)
 
-        for logger in [app.logger] + loggers:
-            if 'LOG_FILE' in app.config:
-                logger.addHandler(file_handler)
-            if 'FROM_EMAIL' in app.config:
-                logger.addHandler(mail_handler)
-            if 'STDERR' in app.config:
-                logger.addHandler(stderr_handler)
+
+        if 'LOG_FILE' in app.config:
+            logger.addHandler(file_handler)
+        if 'FROM_EMAIL' in app.config:
+            logger.addHandler(mail_handler)
+        if 'STDERR' in app.config:
+            logger.addHandler(stderr_handler)
     elif not app.testing:
-        for logger in loggers:
-            logger.addHandler(app.logger.handlers[0])
+        logger.addHandler(app.logger.handlers[0])
 
     app.wsgi_app = ProxyFix(app.wsgi_app)
 
