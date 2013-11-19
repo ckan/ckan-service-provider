@@ -97,7 +97,7 @@ def configure():
         name = _names.get(userid)
         return _users.get(name)
 
-    logger = logging.getlogger()
+    logger = logging.getLogger()
 
     if not app.debug:
         stderr_handler = logging.StreamHandler(
