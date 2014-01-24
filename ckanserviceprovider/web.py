@@ -183,8 +183,7 @@ def job_listener(event):
         update_job(job_id, update_dict)
 
 
-headers = {'Content-Type': 'application/json'}
-
+headers = {str('Content-Type'): str('application/json')}
 
 @app.route("/", methods=['GET'])
 def index():
