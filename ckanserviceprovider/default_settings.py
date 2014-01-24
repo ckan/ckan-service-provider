@@ -1,3 +1,5 @@
+import os
+
 DEBUG = False
 TESTING = False
 SECRET_KEY = 'please_replace_me'
@@ -6,7 +8,7 @@ PASSWORD = 'pass'
 
 # database
 
-SQLALCHEMY_DATABASE_URI = 'sqlite://'
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite://')
 SQLALCHEMY_ECHO = False
 
 # webserver host and port
