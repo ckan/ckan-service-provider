@@ -17,7 +17,7 @@ setup(name='ckanserviceprovider',
       include_package_data=True,
       zip_safe=False,
       install_requires=[
-            'APScheduler',
+            'APScheduler==2.1.2',
             'Flask',
             'SQLAlchemy',
             'requests',
