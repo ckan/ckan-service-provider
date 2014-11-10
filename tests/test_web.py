@@ -102,6 +102,7 @@ class TestWeb():
         return app.get('/logout', follow_redirects=True)
 
     def test_status(self):
+        '''/status should return JSON with the app version, job types, etc.'''
         rv = app.get('/status')
         status_data = json.loads(rv.data)
         status_data.pop('stats')
@@ -114,13 +115,14 @@ class TestWeb():
                                        name='testing'))
 
     def test_content_type(self):
+        '''Pages should have content_type "application/json".'''
         # make sure that we get json
         for page in ['/job', '/status', '/job/foo']:
             rv = app.get(page)
             assert_equal(rv.content_type, 'application/json')
 
     def test_bad_post(self):
-
+        '''Invalid posts to /job should receive error messages in JSON.'''
         rv = app.post('/job', data='{"ffsfsafsa":"moo"}')
         assert_equal(json.loads(rv.data), {u'error': u'Not recognised as json,'
                                            ' make sure content type'
@@ -164,7 +166,11 @@ class TestWeb():
                                            'Extra keys are foo'})
 
     def test_asynchronous_post(self):
+        '''A valid post to /job should get back a JSON object with a job ID.
 
+        Also tests a bunch of other stuff about /job.
+
+        '''
         # good job
         rv = app.post('/job',
                       data=json.dumps({"job_type": "example",
@@ -291,7 +297,11 @@ class TestWeb():
         assert not job['api_key'], job
 
     def test_asynchronous_post_with_return_url(self):
+        '''Test posting asynchronous jobs and getting the results.
 
+        Tests both jobs with successful results and jobs with bad results.
+
+        '''
         rv = app.post(
             '/job/with_result',
             data=json.dumps({"job_type": "example",
@@ -371,12 +381,18 @@ class TestWeb():
                     })
 
     def test_missing_job_id(self):
+        '''Trying to get a job ID that doesn't exist should return an HTTP 404.
+
+        The response body should be a JSON object containing a not found error.
+
+        '''
         rv = app.get('/job/not_there')
         assert rv.status_code == 404, rv.status
         error = json.loads(rv.data)
         assert error == {u'error': u'job_id not found'}
 
     def test_not_authorized_to_view_job(self):
+        '''Getting a job that you're not authorized to view should 403.'''
         rv = app.post(
             '/job/one_job',
             data=json.dumps({"job_type": "echo",
@@ -396,6 +412,7 @@ class TestWeb():
         assert rv.status_code == 200, rv.status
 
     def test_bad_metadata(self):
+        '''Posting a job with non-JSON mmetadata should error.'''
         rv = app.post(
             '/job/with_bad_metadata',
             data=json.dumps({"job_type": "example",
@@ -410,6 +427,7 @@ class TestWeb():
                                           'json object'}, return_value
 
     def test_bad_url(self):
+        '''Posting a job with an invalid result_url should error.'''
         rv = app.post(
             '/job/with_bad_result',
             data=json.dumps({"job_type": "example",
@@ -424,6 +442,7 @@ class TestWeb():
                                           'with http'}, return_value
 
     def test_zz_misfire(self):
+        '''Jobs should error if not completed within the misfire_grace_time.'''
         #has z because if this test failes will cause other tests to fail'''
 
         web.scheduler.misfire_grace_time = 0.000001
@@ -461,7 +480,14 @@ class TestWeb():
         web.scheduler.misfire_grace_time = 3600
 
     def test_synchronous_raw_post(self):
+        '''Posting a raw synchronous job should get result in response body.
 
+        User posts a "raw" synchronous job request, ckan-service-provider runs
+        the job and returns an HTTP response with the job result as body.
+        (A "raw" job is one whose result is a raw text value rather than JSON
+        text.)
+
+        '''
         rv = app.post('/job/echoraw',
                       data=json.dumps({"metadata": {"key": "value",
                                                     "moo": "moo"},
@@ -472,7 +498,13 @@ class TestWeb():
         assert rv.data == 'ginp'
 
     def test_synchronous_post(self):
+        '''Posting a synchronous job should get a JSON response with result.
 
+        User posts a synchronous job request, ckan-service-provider runs the
+        job and returns an HTTP response with a JSON body containing the job
+        result.
+
+        '''
         rv = app.post('/job/echobasic',
                       data=json.dumps({"metadata": {"key": "value",
                                                     "moo": "moo",
@@ -576,6 +608,13 @@ class TestWeb():
                                u'metadata': {}})
 
     def test_logging(self):
+        '''Getting /job/log should return logs from the job as JSON.
+
+        Jobs can log messages using a standard logger with a StoringHandler
+        attached, and users can retrieve the logged messages using the
+        /job/log API.
+
+        '''
         rv = app.post('/job/log',
                       data=json.dumps({"metadata": {},
                                        "job_type": "log",
@@ -606,6 +645,12 @@ class TestWeb():
             u'message': u'Just a warning'})
 
     def test_delete_job(self):
+        '''Trying to get the status of a deleted job should return 404.
+
+        This also tests that trying to delete a job when you're not authorized
+        returns 403.
+
+        '''
         rv = app.post('/job/to_be_deleted',
                       data=json.dumps({"metadata": {"foo": "bar"},
                                        "job_type": "echo",
@@ -625,11 +670,18 @@ class TestWeb():
         assert rv.status_code == 404, rv.status
 
     def test_getting_job_data_for_missing_job(self):
+        '''Getting the job data for a job that doesn't exist should 404.'''
         self.login()
         rv = app.get('/job/somefoo/data')
         assert rv.status_code == 404, rv.status
 
     def test_z_test_list(self):
+        '''Tests for /job which should return a list of all the jobs.
+
+        Tests the results from getting /job with various different limits and
+        filters.
+
+        '''
         # has z because needs some data to be useful
 
         rv = app.get('/job')
@@ -661,6 +713,12 @@ class TestWeb():
         assert len(return_data['list']) == 0, return_data['list']
 
     def test_zz_test_clear_all(self):
+        '''Making a DELETE request to /job, which should delete all jobs.
+
+        This also tests the 403 response when you're not authorized to delete,
+        and tests the ?days argument.
+
+        '''
         # has zz because it makes test_z useless
 
         rv = app.delete('/job')
