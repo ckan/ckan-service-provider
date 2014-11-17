@@ -3,6 +3,6 @@ syntax: glob
 *.pyc
 *.swp
 *.swo
-ckan_service_provider.egg-info/*
+ckanserviceprovider.egg-info/*
 *.db
 settings_local.py
