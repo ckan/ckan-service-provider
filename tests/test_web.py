@@ -4,6 +4,9 @@ import json
 import time
 import logging
 import uuid
+import threading
+
+import httpretty
 from nose.tools import assert_equal
 
 import requests
@@ -11,6 +14,11 @@ import ckanserviceprovider.web as web
 import ckanserviceprovider.job as job
 import ckanserviceprovider.util as util
 import ckanserviceprovider.db as db
+
+
+# The callback URL that ckanserviceprovider will post to when the
+# asynchronous background job finishes. We will mock this.
+RESULT_URL = "http://demo.ckan.org/ckanserviceprovider/result_url"
 
 
 def configure():
@@ -47,6 +55,51 @@ def login(app, username='testadmin', password='testpass'):
         username=username,
         password=password
     ), follow_redirects=True)
+
+
+def _make_request_callback_function(event):
+    """Return an httpretty request callback function that sets the given event.
+
+    This is a helper function for mock_result_url() below.
+
+    """
+    def request_callback(request, uri, headers):
+        event.set()
+    return request_callback
+
+
+def mock_result_url(result_url):
+    """Mock the given CKAN Service Provider result URL.
+
+    Returns a threading.Event object that you can use to wait for the mock URL
+    to be called by doing: event.wait().
+
+    The way it works is:
+
+    * A test method calls this function to mock a result_url, receives a
+      threading event object in return.
+
+    * The test method posts to ckanserviceprovider passing the mocked
+      result_url.
+
+    * ckanserviceprovider kicks off an asynchronous background job.
+
+    * The test method waits for ckanserviceprovider's asynchronous background
+      job to finish by doing event.wait().
+
+    * When the job finishes ckanserviceprovider posts to the result_url.
+
+    * The post is intercepted and redirected to a function that sets the
+      thread event.
+
+    * event.wait() returns and the test method continues.
+
+    """
+    event = threading.Event()
+    request_callback = _make_request_callback_function(event)
+    httpretty.register_uri(
+        httpretty.POST, result_url, body=request_callback)
+    return event
 
 
 @job.sync
@@ -205,21 +258,24 @@ class TestWeb():
         return_data = json.loads(rv.data)
         assert 'job_id' in return_data
 
+    @httpretty.activate
     def test_get_job_does_not_return_api_key(self):
         '''The dict that get_job() returns should not contain the API key.'''
         app = test_client()
+
+        event = mock_result_url(RESULT_URL)
 
         response = app.post(
             '/job',
             data=json.dumps(
                 {"job_type": "example",
                  "api_key": 42,
-                 "data": {"time": 0.1}}),
+                 "data": {"time": 0.1},
+                 "result_url": RESULT_URL}),
             content_type='application/json')
         return_data = json.loads(response.data)
 
-        # FIXME: Need a better way to wait for an asynchronous task to finish.
-        time.sleep(2)
+        event.wait()
 
         job = web.get_job(return_data['job_id'])
         assert not job['api_key'], job
@@ -269,6 +325,7 @@ class TestWeb():
                                    u'logs': [],
                                    u'result_url': None}, job_status_data
 
+    @httpretty.activate
     def test_get_job_when_completed(self):
         '''Get a job with a custom ID after it has completed.
 
@@ -276,15 +333,17 @@ class TestWeb():
 
         '''
         app = test_client()
+        event = mock_result_url(RESULT_URL)
         app.post(
             '/job/moo',
             data=json.dumps({
                 "job_type": "example",
                 "api_key": 42,
-                "data": {"time": 0.1}}),
+                "data": {"time": 0.1},
+                "result_url": RESULT_URL}),
             content_type='application/json')
 
-        time.sleep(2)
+        event.wait()
 
         login(app)
 
@@ -302,7 +361,7 @@ class TestWeb():
                                    u'Slept for 0.1 seconds.',
                                    u'metadata': {},
                                    u'logs': [],
-                                   u'result_url': None}, job_status_data
+                                   u'result_url': RESULT_URL}, job_status_data
 
     def test_post_job_with_duplicate_custom_id(self):
         '''Posting a job with a duplicate ID should error.'''
@@ -365,6 +424,7 @@ class TestWeb():
         assert json.loads(rv.data)['job_id'] == "exception", \
             json.loads(rv.data)
 
+    @httpretty.activate
     def test_get_job_with_known_error(self):
         '''Test getting a job that failed with a JobError.
 
@@ -373,17 +433,20 @@ class TestWeb():
 
         '''
         app = test_client()
+        event = mock_result_url(RESULT_URL)
         rv = app.post(
             '/job/missing_time',
             data=json.dumps({
                 "job_type": "example",
                 "api_key": 42,
-                "data": {}}),
+                "data": {},
+                "result_url": RESULT_URL}),
             content_type='application/json')
 
         login(app)
 
-        time.sleep(2)
+        # FIXME: Find a better way to wait for the job to complete.
+        event.wait()
 
         rv = app.get('/job/missing_time')
 
@@ -399,12 +462,13 @@ class TestWeb():
                                    u'data': None,
                                    u'metadata': {},
                                    u'logs': [],
-                                   u'result_url': None}, job_status_data
+                                   u'result_url': RESULT_URL}, job_status_data
 
         # get_job() shouldn't return the API key, either.
         job = web.get_job(job_status_data['job_id'])
         assert not job['api_key'], job
 
+    @httpretty.activate
     def test_get_job_with_unknown_error(self):
         '''Test getting a job that failed with a random exception.
 
@@ -413,17 +477,19 @@ class TestWeb():
 
         '''
         app = test_client()
+        event = mock_result_url(RESULT_URL)
         rv = app.post(
             '/job/exception',
             data=json.dumps({
                 "job_type": "example",
                 "api_key": 42,
-                "data": {"time": "not_a_time"}}),
+                "data": {"time": "not_a_time"},
+                "result_url": RESULT_URL}),
             content_type='application/json')
 
         login(app)
 
-        time.sleep(2)
+        event.wait()
 
         rv = app.get('/job/exception')
 
@@ -439,7 +505,7 @@ class TestWeb():
                                    u'data': None,
                                    u'metadata': {},
                                    u'logs': [],
-                                   u'result_url': None}, job_status_data
+                                   u'result_url': RESULT_URL}, job_status_data
         assert 'TypeError' in error[-1], error
 
         # get_job() shouldn't return the API key, either.
@@ -473,6 +539,7 @@ class TestWeb():
                              "result_url": "http://0.0.0.0:9091/resul"}),
             content_type='application/json')
 
+        # FIXME
         time.sleep(0.5)
 
         login(app)
@@ -596,9 +663,11 @@ class TestWeb():
         assert return_value == {u'error': u'result_url has to start '
                                           'with http'}, return_value
 
+    @httpretty.activate
     def test_zz_misfire(self):
         '''Jobs should error if not completed within the misfire_grace_time.'''
         app = test_client()
+        event = mock_result_url(RESULT_URL)
         #has z because if this test failes will cause other tests to fail'''
 
         web.scheduler.misfire_grace_time = 0.000001
@@ -610,10 +679,11 @@ class TestWeb():
                              "metadata": {"moon": "moon",
                                           "nested": {"nested": "nested"},
                                           "key": "value"},
+                             "result_url": RESULT_URL,
                              }),
             content_type='application/json')
 
-        time.sleep(0.5)
+        event.wait()
 
         login(app)
         rv = app.get('/job/misfire')
@@ -632,8 +702,8 @@ class TestWeb():
                                    u'metadata': {"key": "value",
                                                  "moon": "moon",
                                                  "nested": {"nested":
-                                                            "nested"}}})
-        web.scheduler.misfire_grace_time = 3600
+                                                            "nested"}},
+                                    "result_url": RESULT_URL})
 
     def test_synchronous_raw_post(self):
         '''Posting a raw synchronous job should get result in response body.
@@ -765,6 +835,7 @@ class TestWeb():
                                u'logs': [],
                                u'metadata': {}})
 
+    @httpretty.activate
     def test_logging(self):
         '''Getting /job/log should return logs from the job as JSON.
 
@@ -774,14 +845,16 @@ class TestWeb():
 
         '''
         app = test_client()
+        event = mock_result_url(RESULT_URL)
         rv = app.post('/job/log',
                       data=json.dumps({"metadata": {},
                                        "job_type": "log",
                                        "api_key": 42,
-                                       "data": "&ping"}),
+                                       "data": "&ping",
+                                       "result_url": RESULT_URL}),
                       content_type='application/json')
 
-        time.sleep(0.2)
+        event.wait()
 
         login(app, username='testadmin', password='wrong')
         rv = app.get('/job/log')
