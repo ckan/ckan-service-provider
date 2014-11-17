@@ -54,7 +54,8 @@ def drop_all():
 
 
 def add_pending_job(job_id, job_key, job_type, api_key,
-                    data=None, metadata=None, result_url=None):
+                    data=None, metadata=None, result_url=None,
+                    _test_callback_url=None):
     """Add a job with status "pending" to the jobs table.
 
     All code that adds jobs to the jobs table should go through this function.
@@ -108,7 +109,8 @@ def add_pending_job(job_id, job_key, job_type, api_key,
             sent_data=json.dumps(data),
             result_url=result_url,
             api_key=api_key,
-            job_key=job_key))
+            job_key=job_key,
+            _test_callback_url=_test_callback_url))
 
         # Insert any (key, value) metadata pairs that the job has into the
         # metadata table.
@@ -170,6 +172,7 @@ def _init_jobs_table():
         sqlalchemy.Column('api_key', sqlalchemy.UnicodeText),
         # Key to administer job:
         sqlalchemy.Column('job_key', sqlalchemy.UnicodeText),
+        sqlalchemy.Column('_test_callback_url', sqlalchemy.UnicodeText),
         )
     return _jobs_table
 
