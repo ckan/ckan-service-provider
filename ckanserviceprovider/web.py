@@ -26,17 +26,115 @@ import db
 import util
 import default_settings
 
-#to be filled by sync async decorators
+# Some module-global constants. Some of these are accessed directly by other
+# modules. It would be good to factor out as many of these as possible.
 sync_types = {}
 async_types = {}
 job_statuses = ['pending', 'complete', 'error']
-
 app = flask.Flask(__name__)
-scheduler = apscheduler.Scheduler()
-#Allow a day for jobs to be run otherwise drop them. Should rerun these later.
-scheduler.misfire_grace_time = 3600
+scheduler = None
+_users = None
+_names = None
 
-app.url_map.strict_slashes = False
+
+def init():
+    """Initialise and configure the app, database, scheduler, etc.
+
+    This should be called once at application startup or at tests startup
+    (and not e.g. called once for each test case).
+
+    """
+    global _users, _names
+    _configure_app(app)
+    _users, _names = _init_login_manager(app)
+    _configure_logger()
+    init_scheduler(app.config.get('SQLALCHEMY_DATABASE_URI'))
+    db.init(app.config.get('SQLALCHEMY_DATABASE_URI'))
+
+
+def _configure_app(app_):
+    """Configure the Flask WSGI app."""
+    app_.url_map.strict_slashes = False
+    app_.config.from_object(default_settings)
+    app_.config.from_envvar('JOB_CONFIG', silent=True)
+    db_url = app_.config.get('SQLALCHEMY_DATABASE_URI')
+    if not db_url:
+        raise Exception('No db_url in config')
+    app_.wsgi_app = ProxyFix(app_.wsgi_app)
+    return app_
+
+
+def _init_login_manager(app_):
+    """Initialise and configure the login manager."""
+    login_manager = flogin.LoginManager()
+    login_manager.setup_app(app_)
+    login_manager.anonymous_user = Anonymous
+    login_manager.login_view = "login"
+
+    users = {app_.config['USERNAME']: User('Admin', 0)}
+    names = dict((int(v.get_id()), k) for k, v in users.items())
+
+    @login_manager.user_loader
+    def load_user(userid):
+        userid = int(userid)
+        name = names.get(userid)
+        return users.get(name)
+
+    return users, names
+
+
+def _configure_logger_for_production(logger):
+    """Configure the given logger for production deployment.
+
+    Logs to stderr and file, and emails errors to admins.
+
+    """
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.INFO)
+    if 'STDERR' in app.config:
+        logger.addHandler(stderr_handler)
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        app.config.get('LOG_FILE'), maxBytes=67108864, backupCount=5)
+    file_handler.setLevel(logging.INFO)
+    if 'LOG_FILE' in app.config:
+        logger.addHandler(file_handler)
+
+    mail_handler = logging.handlers.SMTPHandler(
+        '127.0.0.1',
+        app.config.get('FROM_EMAIL'),
+        app.config.get('ADMINS', []),
+        'CKAN Service Error')
+    mail_handler.setLevel(logging.ERROR)
+    if 'FROM_EMAIL' in app.config:
+        logger.addHandler(mail_handler)
+
+
+def _configure_logger_for_debugging(logger):
+    """Configure the given logger for debug mode."""
+    logger.addHandler(app.logger.handlers[0])
+
+
+def _configure_logger():
+    """Configure the logging module."""
+    if not app.debug:
+        _configure_logger_for_production(logging.getLogger())
+    elif not app.testing:
+        _configure_logger_for_debugging(logging.getLogger())
+
+
+def init_scheduler(db_uri):
+    """Initialise and configure the scheduler."""
+    global scheduler
+    scheduler = apscheduler.Scheduler()
+    scheduler.misfire_grace_time = 3600
+    scheduler.add_jobstore(
+        sqlalchemy_store.SQLAlchemyJobStore(url=db_uri), 'default')
+    scheduler.add_listener(
+        job_listener,
+        events.EVENT_JOB_EXECUTED | events.EVENT_JOB_MISSED
+        | events.EVENT_JOB_ERROR)
+    return scheduler
 
 
 class User(flogin.UserMixin):
@@ -51,83 +149,6 @@ class User(flogin.UserMixin):
 
 class Anonymous(flogin.AnonymousUserMixin):
     name = u"Anonymous"
-
-_users = None
-_names = None
-
-
-def configure():
-    app.config.from_object(default_settings)
-    app.config.from_envvar('JOB_CONFIG', silent=True)
-    db_url = app.config.get('SQLALCHEMY_DATABASE_URI')
-    if not db_url:
-        raise Exception('No db_url in config')
-    db.setup_db(app)
-    scheduler.add_listener(job_listener,
-                           events.EVENT_JOB_EXECUTED |
-                           events.EVENT_JOB_MISSED |
-                           events.EVENT_JOB_ERROR)
-
-    # need this for the tests
-    try:
-        scheduler.remove_jobstore('default')
-    except KeyError:
-        pass
-    scheduler.add_jobstore(sqlalchemy_store.SQLAlchemyJobStore(
-        url=db_url), 'default')
-
-    login_manager = flogin.LoginManager()
-    login_manager.setup_app(app)
-
-    login_manager.anonymous_user = Anonymous
-    login_manager.login_view = "login"
-
-    global _users
-    global _names
-
-    _users = {
-        app.config['USERNAME']: User('Admin', 0)
-    }
-
-    _names = dict((int(v.get_id()), k) for k, v in _users.items())
-
-    @login_manager.user_loader
-    def load_user(userid):
-        userid = int(userid)
-        name = _names.get(userid)
-        return _users.get(name)
-
-    logger = logging.getLogger()
-
-    if not app.debug:
-        stderr_handler = logging.StreamHandler(
-            sys.stderr)
-
-        stderr_handler.setLevel(logging.INFO)
-
-        file_handler = logging.handlers.RotatingFileHandler(
-            app.config.get('LOG_FILE'),
-            maxBytes=67108864, backupCount=5)
-        file_handler.setLevel(logging.INFO)
-
-        mail_handler = logging.handlers.SMTPHandler(
-            '127.0.0.1',
-            app.config.get('FROM_EMAIL'),
-            app.config.get('ADMINS', []),
-            'CKAN Service Error')
-        mail_handler.setLevel(logging.ERROR)
-
-
-        if 'LOG_FILE' in app.config:
-            logger.addHandler(file_handler)
-        if 'FROM_EMAIL' in app.config:
-            logger.addHandler(mail_handler)
-        if 'STDERR' in app.config:
-            logger.addHandler(stderr_handler)
-    elif not app.testing:
-        logger.addHandler(app.logger.handlers[0])
-
-    app.wsgi_app = ProxyFix(app.wsgi_app)
 
 
 class RunNowTrigger(object):
@@ -627,7 +648,7 @@ def job(job_id=None):
 
 def run_synchronous_job(job, job_id, job_key, input):
     try:
-        store_job(job_id, job_key, input)
+        db.add_pending_job(job_id, job_key, **input)
     except sa.exc.IntegrityError, e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
@@ -670,7 +691,7 @@ def run_asynchronous_job(job, job_id, job_key, input):
     if not scheduler.running:
         scheduler.start()
     try:
-        store_job(job_id, job_key, input)
+        db.add_pending_job(job_id, job_key, **input)
     except sa.exc.IntegrityError:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
@@ -678,44 +699,6 @@ def run_asynchronous_job(job, job_id, job_key, input):
     scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
 
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
-
-
-def store_job(job_id, job_key, input):
-    metadata = input.get('metadata', {})
-
-    conn = db.engine.connect()
-    trans = conn.begin()
-    try:
-        conn.execute(db.jobs_table.insert().values(
-            job_id=job_id,
-            job_type=input['job_type'],
-            status='pending',
-            requested_timestamp=datetime.datetime.now(),
-            sent_data=json.dumps(input.get('data', {})),
-            result_url=input.get('result_url'),
-            api_key=input.get('api_key')),
-            job_key=job_key
-        )
-        inserts = []
-        for key, value in metadata.items():
-            type = 'string'
-            if not isinstance(value, basestring):
-                value = json.dumps(value)
-                type = 'json'
-            inserts.append(
-                {"job_id": job_id,
-                 "key": key,
-                 "value": value,
-                 "type": type}
-            )
-        if inserts:
-            conn.execute(db.metadata_table.insert(), inserts)
-        trans.commit()
-    except Exception:
-        trans.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 def is_authorized(job=None):
@@ -819,6 +802,10 @@ def get_logs(job_id):
     return map(remove_job_id, results)
 
 
-if __name__ == '__main__':
-    configure()
+def main():
+    init()
     app.run(app.config.get('HOST'), app.config.get('PORT'))
+
+
+if __name__ == '__main__':
+    main()
