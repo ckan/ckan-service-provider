@@ -255,7 +255,10 @@ class TestWeb():
             content_type='application/json')
         return_data = json.loads(response.data)
 
-        event.wait()
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         job = web.get_job(return_data['job_id'])
         assert not job['api_key'], job
@@ -323,7 +326,10 @@ class TestWeb():
                 "result_url": RESULT_URL}),
             content_type='application/json')
 
-        event.wait()
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         login(app)
 
@@ -425,8 +431,10 @@ class TestWeb():
 
         login(app)
 
-        # FIXME: Find a better way to wait for the job to complete.
-        event.wait()
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         rv = app.get('/job/missing_time')
 
@@ -469,7 +477,10 @@ class TestWeb():
 
         login(app)
 
-        event.wait()
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         rv = app.get('/job/exception')
 
@@ -550,9 +561,9 @@ class TestWeb():
         # Wait until ckanserviceprovider has posted the result of its
         # asynchronous background job to the mocked result URL.
         timeout = 10.0
-        if not event.wait(timeout):
-            assert False, ("result_url was not posted to within {timeout} "
-                           "seconds".format(timeoue))
+        assert event.wait(timeout), (
+            "result_url was not posted to within {timeout} seconds".format(
+                timeout=timeout))
 
         login(app)
 
@@ -603,9 +614,9 @@ class TestWeb():
             content_type='application/json')
 
         timeout = 10.0
-        if not event.wait(timeout):
-            assert False, ("test_callback_url was not called within {timeout} "
-                           "seconds".format(timeout=timeout))
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         login(app)
         rv = app.get('/job/with_bad_result')
@@ -712,7 +723,10 @@ class TestWeb():
                              }),
             content_type='application/json')
 
-        event.wait()
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         login(app)
         rv = app.get('/job/misfire')
@@ -883,7 +897,10 @@ class TestWeb():
                                        "result_url": RESULT_URL}),
                       content_type='application/json')
 
-        event.wait()
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
 
         login(app, username='testadmin', password='wrong')
         rv = app.get('/job/log')
