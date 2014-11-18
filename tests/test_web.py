@@ -277,7 +277,6 @@ class TestWeb(object):
         '''Posting a job with a custom ID should return the ID in the JSON.'''
         client = test_client()
 
-        # good job with name
         response = client.post(
             '/job/moo',
             data=json.dumps({"job_type": "example",
