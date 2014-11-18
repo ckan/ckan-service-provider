@@ -594,7 +594,7 @@ class TestWeb():
 
         """
         app = test_client()
-        test_callback_url = "http://0.0.0.0:8721/test_callback_url"
+        test_callback_url = app.application.config.get("_TEST_CALLBACK_URL")
         event = threading.Event()
         def test_callback_was_called(request, uri, headers):
             event.set()
@@ -609,8 +609,7 @@ class TestWeb():
                 "api_key": 42,
                 "data": {"time": 0.1},
                 "metadata": {'key': 'value'},
-                "result_url": RESULT_URL,
-                "_test_callback_url": test_callback_url}),
+                "result_url": RESULT_URL}),
             content_type='application/json')
 
         timeout = 10.0
@@ -632,9 +631,7 @@ class TestWeb():
                                    u'data': u'Slept for 0.1 seconds.',
                                    u'metadata': {'key': 'value'},
                                    u'logs': [],
-                                   u'result_url': RESULT_URL,
-                                   '_test_callback_url': test_callback_url}, \
-                                           job_status_data
+                                   u'result_url': RESULT_URL}, job_status_data
 
         job = web.get_job(job_status_data['job_id'])
         assert not job['api_key'], job

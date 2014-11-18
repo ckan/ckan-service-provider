@@ -205,8 +205,8 @@ def job_listener(event):
         update_job(job_id, update_dict)
 
     # Optionally notify tests that job_listener() has finished.
-    if "_test_callback_url" in job:
-        requests.get(job["_test_callback_url"])
+    if "_TEST_CALLBACK_URL" in app.config:
+        requests.get(app.config["_TEST_CALLBACK_URL"])
 
 
 headers = {str('Content-Type'): str('application/json')}
@@ -608,8 +608,7 @@ def job(job_id=None):
                                      'json')}), 409, headers
 
     ACCEPTED_ARGUMENTS = set(['job_type', 'data', 'metadata',
-                              'result_url', 'api_key', 'metadata',
-                              '_test_callback_url'])
+                              'result_url', 'api_key', 'metadata'])
     extra_keys = set(input.keys()) - ACCEPTED_ARGUMENTS
     if extra_keys:
         return json.dumps({"error": (
@@ -780,12 +779,6 @@ def get_job(job_id):
             result_dict[field] = unicode(value)
     result_dict['metadata'] = get_metadata(job_id)
     result_dict['logs'] = get_logs(job_id)
-
-    # Don't return "_test_callback_url": None if the client didn't post any
-    # test_callback_url.
-    if "_test_callback_url" in result_dict:
-        if result_dict["_test_callback_url"] is None:
-            del result_dict["_test_callback_url"]
 
     return result_dict
 
