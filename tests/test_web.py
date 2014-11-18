@@ -100,6 +100,15 @@ def mock_result_url(result_url):
     return event
 
 
+def number_of_jobs(client):
+    """Return the number of jobs that the app has in its database.
+
+    :param client: a test client of the ckanserviceprovider flask app
+
+    """
+    return len(json.loads(client.get("/job").data)["list"])
+
+
 @job.sync
 def echo(task_id, input):
     if input['data'].startswith('>'):
@@ -1047,11 +1056,6 @@ class TestWeb(object):
         return_data = json.loads(response.data)
         assert len(return_data['list']) == 0, return_data['list']
 
-
-    def number_of_jobs(self, client):
-        return len(json.loads(client.get("/job").data)["list"])
-
-
     def test_clear_all(self):
         '''Making a DELETE request to /job, which should delete all jobs.
 
@@ -1075,21 +1079,21 @@ class TestWeb(object):
             metadata={"key": "value", "moo": "moo"})
         db.mark_job_as_completed("job_03")
 
-        original_number_of_jobs = self.number_of_jobs(client)
+        original_number_of_jobs = number_of_jobs(client)
 
         # This should not delete any jobs because not authorized.
         response = client.delete('/job')
         assert response.status_code == 403, response.status
-        assert self.number_of_jobs(client) == original_number_of_jobs
+        assert number_of_jobs(client) == original_number_of_jobs
 
         login(client)
 
         # This should not delete any jobs because the jobs aren't old enough.
         response = client.delete('/job')
         assert response.status_code == 200, response.status
-        assert self.number_of_jobs(client) == original_number_of_jobs
+        assert number_of_jobs(client) == original_number_of_jobs
 
         # This should delete all the jobs.
         response = client.delete('/job?days=0')
         assert response.status_code == 200, response.status
-        assert self.number_of_jobs(client) == 0
+        assert number_of_jobs(client) == 0
