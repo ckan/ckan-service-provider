@@ -382,7 +382,13 @@ class TestWeb(object):
             json.loads(response.data)
 
     def test_post_with_job_error(self):
-        '''If a job raises JobError then ... the response should contain the job id???'''
+        """If a job raises JobError the response should still contain job_id.
+
+        If a job with a custom ID raises JobError then the "job_id" field in
+        ckanserviceprovider's HTTP response should stull contain the job's
+        custom ID.
+
+        """
         # The 'example' job type (defined above) will raise JobError for this
         # data because the data has no "time" key.
         client = test_client()
