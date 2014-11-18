@@ -1060,7 +1060,7 @@ class TestWeb(object):
         assert len(return_data['list']) == 0, return_data['list']
 
     def test_clear_all(self):
-        '''Making a DELETE request to /job, which should delete all jobs.
+        '''Making a DELETE request to /job should delete all jobs.
 
         This also tests the 403 response when you're not authorized to delete,
         and tests the ?days argument.
