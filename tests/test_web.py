@@ -242,7 +242,6 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        # good job
         response = client.post(
             '/job',
             data=json.dumps({"job_type": "example",
