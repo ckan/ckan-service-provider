@@ -267,8 +267,8 @@ class TestWeb(object):
             "result_url was not called within {timeout} seconds".format(
                 timeout=timeout))
 
-        job = web.get_job(return_data['job_id'])
-        assert not job['api_key'], job
+        job_ = web.get_job(return_data['job_id'])
+        assert not job_['api_key'], job_
 
     def test_post_job_with_custom_id(self):
         '''Posting a job with a custom ID should return the ID in the JSON.'''
