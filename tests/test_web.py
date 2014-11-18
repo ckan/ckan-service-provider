@@ -530,7 +530,6 @@ class TestWeb(object):
         If a job has a result_url parameter then when the job finishes
         ckanserviceprovider should post the job's result to the result_url.
 
-
         """
         client = test_client()
 
