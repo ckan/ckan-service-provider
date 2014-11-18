@@ -390,7 +390,7 @@ class TestWeb(object):
         """If a job raises JobError the response should still contain job_id.
 
         If a job with a custom ID raises JobError then the "job_id" field in
-        ckanserviceprovider's HTTP response should stull contain the job's
+        ckanserviceprovider's HTTP response should still contain the job's
         custom ID.
 
         """
