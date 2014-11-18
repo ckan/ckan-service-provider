@@ -193,7 +193,8 @@ def job_listener(event):
 
     update_dict['api_key'] = None
 
-    api_key = get_job(job_id)['api_key']
+    job = get_job(job_id)
+    api_key = job['api_key']
     update_job(job_id, update_dict)
     result_ok = send_result(job_id, api_key)
 
@@ -202,6 +203,10 @@ def job_listener(event):
         update_dict['error'] = json.dumps(
             'Process completed but unable to post to result_url')
         update_job(job_id, update_dict)
+
+    # Optionally notify tests that job_listener() has finished.
+    if "_TEST_CALLBACK_URL" in app.config:
+        requests.get(app.config["_TEST_CALLBACK_URL"])
 
 
 headers = {str('Content-Type'): str('application/json')}
@@ -774,6 +779,7 @@ def get_job(job_id):
             result_dict[field] = unicode(value)
     result_dict['metadata'] = get_metadata(job_id)
     result_dict['logs'] = get_logs(job_id)
+
     return result_dict
 
 
