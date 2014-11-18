@@ -619,8 +619,10 @@ class TestWeb(object):
         client = test_client()
         test_callback_url = client.application.config.get("_TEST_CALLBACK_URL")
         event = threading.Event()
+
         def test_callback_was_called(request, uri, headers):
             event.set()
+
         httpretty.register_uri(httpretty.POST, RESULT_URL, status=404)
         httpretty.register_uri(
             httpretty.GET, test_callback_url, body=test_callback_was_called)
@@ -732,14 +734,15 @@ class TestWeb(object):
         web.scheduler.misfire_grace_time = 0.000001
         response = client.post(
             '/job/misfire',
-            data=json.dumps({"job_type": "example",
-                             "api_key": 42,
-                             "data": {"time": 0.1},
-                             "metadata": {"moon": "moon",
-                                          "nested": {"nested": "nested"},
-                                          "key": "value"},
-                             "result_url": RESULT_URL,
-                             }),
+            data=json.dumps({
+                "job_type": "example",
+                "api_key": 42,
+                "data": {"time": 0.1},
+                "metadata": {"moon": "moon",
+                             "nested": {"nested": "nested"},
+                             "key": "value"},
+                "result_url": RESULT_URL,
+            }),
             content_type='application/json')
 
         timeout = 10.0
@@ -752,19 +755,19 @@ class TestWeb(object):
         job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert_equal(job_status_data, {u'status': u'error',
-                                   u'sent_data': {u'time': 0.1},
-                                   u'job_id': u'misfire',
-                                   u'job_type': u'example',
-                                   u'error': u'Job delayed too long, '
-                                             'service full',
-                                   u'data': None,
-                                   u'logs': [],
-                                   u'metadata': {"key": "value",
-                                                 "moon": "moon",
-                                                 "nested": {"nested":
-                                                            "nested"}},
-                                    "result_url": RESULT_URL})
+        assert_equal(
+            job_status_data,
+            {u'status': u'error',
+             u'sent_data': {u'time': 0.1},
+             u'job_id': u'misfire',
+             u'job_type': u'example',
+             u'error': u'Job delayed too long, service full',
+             u'data': None,
+             u'logs': [],
+             u'metadata': {"key": "value",
+                           "moon": "moon",
+                           "nested": {"nested": "nested"}},
+             "result_url": RESULT_URL})
 
     def test_synchronous_raw_post(self):
         '''Posting a raw synchronous job should get result in response body.
@@ -812,17 +815,18 @@ class TestWeb(object):
         job_ = web.get_job(return_data['job_id'])
         assert not job_['api_key'], job_
 
-        assert_equal(return_data, {u'status': u'complete',
-                               u'sent_data': u'ping',
-                               u'job_id': u'echobasic',
-                               u'job_type': u'echo',
-                               u'result_url': None,
-                               u'error': None,
-                               u'data': u'>ping',
-                               u'logs': [],
-                               u'metadata': {"key": "value",
-                                             "moo": "moo",
-                                             "mimetype": "text/csv"}})
+        assert_equal(
+            return_data,
+            {u'status': u'complete',
+             u'sent_data': u'ping',
+             u'job_id': u'echobasic',
+             u'job_type': u'echo',
+             u'result_url': None,
+             u'error': None,
+             u'data': u'>ping',
+             u'logs': [],
+             u'metadata': {"key": "value", "moo": "moo",
+                           "mimetype": "text/csv"}})
 
         login(client)
         response = client.get('/job/echobasic')
@@ -847,7 +851,8 @@ class TestWeb(object):
             content_type='application/json')
 
         return_data = json.loads(response.data)
-        assert_equal(return_data, {u'error': u'job_id echobasic already exists'})
+        assert_equal(
+            return_data, {u'error': u'job_id echobasic already exists'})
 
         response = client.post(
             '/job/echoknownbad',
@@ -860,15 +865,17 @@ class TestWeb(object):
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         return_data.pop('job_key')
-        assert_equal(return_data, {u'status': u'error',
-                               u'sent_data': u'>ping',
-                               u'job_id': u'echoknownbad',
-                               u'job_type': u'echo',
-                               u'result_url': None,
-                               u'error': u'Do not start message with >',
-                               u'data': None,
-                               u'logs': [],
-                               u'metadata': {}})
+        assert_equal(
+            return_data,
+            {u'status': u'error',
+             u'sent_data': u'>ping',
+             u'job_id': u'echoknownbad',
+             u'job_type': u'echo',
+             u'result_url': None,
+             u'error': u'Do not start message with >',
+             u'data': None,
+             u'logs': [],
+             u'metadata': {}})
 
         response = client.post(
             '/job/echounknownbad',
@@ -890,16 +897,17 @@ class TestWeb(object):
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         return_data.pop('job_key')
-        assert_equal(return_data, {u'status': u'complete',
-                               u'sent_data': u'moo',
-                               u'job_id': u'echobad_url',
-                               u'job_type': u'echo',
-                               u'result_url': u'http://bad_url',
-                               u'error': u'Process completed but unable to'
-                                          ' post to result_url',
-                               u'data': u'>moo',
-                               u'logs': [],
-                               u'metadata': {}})
+        assert_equal(
+            return_data,
+            {u'status': u'complete',
+             u'sent_data': u'moo',
+             u'job_id': u'echobad_url',
+             u'job_type': u'echo',
+             u'result_url': u'http://bad_url',
+             u'error': u'Process completed but unable to post to result_url',
+             u'data': u'>moo',
+             u'logs': [],
+             u'metadata': {}})
 
     @httpretty.activate
     def test_logging(self):
