@@ -153,8 +153,8 @@ class TestWeb(object):
     def test_status(self):
         '''/status should return JSON with the app version, job types, etc.'''
         client = test_client()
-        rv = client.get('/status')
-        status_data = json.loads(rv.data)
+        response = client.get('/status')
+        status_data = json.loads(response.data)
         status_data.pop('stats')
         assert_equal(status_data, dict(version=0.1,
                                        job_types=['failing',
@@ -169,53 +169,63 @@ class TestWeb(object):
         client = test_client()
         # make sure that we get json
         for page in ['/job', '/status', '/job/foo']:
-            rv = client.get(page)
-            assert_equal(rv.content_type, 'application/json')
+            response = client.get(page)
+            assert_equal(response.content_type, 'application/json')
 
     def test_bad_post(self):
         '''Invalid posts to /job should receive error messages in JSON.'''
         client = test_client()
-        rv = client.post('/job', data='{"ffsfsafsa":"moo"}')
-        assert_equal(json.loads(rv.data), {u'error': u'Not recognised as json,'
-                                           ' make sure content type'
-                                           ' is application/json'})
+        response = client.post('/job', data='{"ffsfsafsa":"moo"}')
+        assert_equal(
+            json.loads(response.data),
+            {u'error': u'Not recognised as json, make sure content type is '
+                       'application/json'})
 
-        rv = client.post('/job',
-                      data='{"ffsfsafsa":moo}',
-                      content_type='application/json')
-        assert_equal(json.loads(rv.data), {u'error': u'Malformed json'})
+        response = client.post(
+            '/job',
+            data='{"ffsfsafsa":moo}',
+            content_type='application/json')
+        assert_equal(json.loads(response.data), {u'error': u'Malformed json'})
 
-        rv = client.post('/job',
-                      data=json.dumps({
-                          "api_key": 42,
-                          "data": {"time": 5}}),
-                      content_type='application/json')
-        assert_equal(json.loads(rv.data), {u'error': u'Please specify a job '
-                                           'type'})
+        response = client.post(
+            '/job',
+            data=json.dumps({
+                "api_key": 42,
+                "data": {"time": 5}}),
+            content_type='application/json')
+        assert_equal(
+            json.loads(response.data),
+            {u'error': u'Please specify a job type'})
 
-        rv = client.post('/job',
-                      data=json.dumps({"job_type": "moo",
-                                       "api_key": 42,
-                                       "data": {"time": 5}}),
-                      content_type='application/json')
-        assert_equal(json.loads(rv.data), {u'error': u'Job type moo not available.'
-                                           ' Available job types are '
-                                           'failing, example, log, echo_raw, echo'})
+        response = client.post(
+            '/job',
+            data=json.dumps({"job_type": "moo",
+                             "api_key": 42,
+                             "data": {"time": 5}}),
+            content_type='application/json')
+        assert_equal(
+            json.loads(response.data),
+            {u'error': u'Job type moo not available. Available job types are '
+                       'failing, example, log, echo_raw, echo'})
 
-        rv = client.post('/job',
-                      data=json.dumps({"job_type": "example",
-                                       "data": {"time": 5}}),
-                      content_type='application/json')
-        assert_equal(json.loads(rv.data), {u'error': u'Please provide your API key.'})
+        response = client.post(
+            '/job',
+            data=json.dumps({"job_type": "example", "data": {"time": 5}}),
+            content_type='application/json')
+        assert_equal(
+            json.loads(response.data),
+            {u'error': u'Please provide your API key.'})
 
-        rv = client.post('/job',
-                      data=json.dumps({"job_type": "example",
-                                       "api_key": 42,
-                                       "data": {"time": 5},
-                                       "foo": 42}),
-                      content_type='application/json')
-        assert_equal(json.loads(rv.data), {u'error': u'Too many arguments. '
-                                           'Extra keys are foo'})
+        response = client.post(
+            '/job',
+            data=json.dumps({"job_type": "example",
+                             "api_key": 42,
+                             "data": {"time": 5},
+                             "foo": 42}),
+            content_type='application/json')
+        assert_equal(
+            json.loads(response.data),
+            {u'error': u'Too many arguments. Extra keys are foo'})
 
     def test_asynchronous_post_with_good_job(self):
         '''A valid post to /job should get back a JSON object with a job ID.
@@ -225,13 +235,14 @@ class TestWeb(object):
         '''
         client = test_client()
         # good job
-        rv = client.post('/job',
-                      data=json.dumps({"job_type": "example",
-                                       "api_key": 42,
-                                       "data": {"time": 0.1}}),
-                      content_type='application/json')
+        response = client.post(
+            '/job',
+            data=json.dumps({"job_type": "example",
+                             "api_key": 42,
+                             "data": {"time": 0.1}}),
+            content_type='application/json')
 
-        return_data = json.loads(rv.data)
+        return_data = json.loads(response.data)
         assert 'job_id' in return_data
 
     @httpretty.activate
@@ -264,13 +275,15 @@ class TestWeb(object):
         client = test_client()
 
         # good job with name
-        rv = client.post('/job/moo',
-                      data=json.dumps({"job_type": "example",
-                                       "api_key": 42,
-                                       "data": {"time": 0.1}}),
-                      content_type='application/json')
+        response = client.post(
+            '/job/moo',
+            data=json.dumps({"job_type": "example",
+                             "api_key": 42,
+                             "data": {"time": 0.1}}),
+            content_type='application/json')
 
-        assert json.loads(rv.data)['job_id'] == "moo", json.loads(rv.data)
+        assert json.loads(response.data)['job_id'] == "moo", (
+            json.loads(response.data))
 
     def test_get_job_while_pending(self):
         '''Create a job with a custom ID and get the job while still pending.
@@ -289,9 +302,9 @@ class TestWeb(object):
             content_type='application/json')
 
         login(client)
-        rv = client.get('/job/moo')
+        response = client.get('/job/moo')
 
-        job_status_data = json.loads(rv.data)
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         assert job_status_data == {u'status': u'pending',
                                    u'sent_data': {"time": 1},
@@ -329,9 +342,9 @@ class TestWeb(object):
 
         login(client)
 
-        rv = client.get('/job/moo')
+        response = client.get('/job/moo')
 
-        job_status_data = json.loads(rv.data)
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
 
@@ -356,7 +369,7 @@ class TestWeb(object):
                 "data": {"time": 0.1}}),
             content_type='application/json')
 
-        rv = client.post(
+        response = client.post(
             '/job/moo',
             data=json.dumps({
                 "job_type": "example",
@@ -364,16 +377,16 @@ class TestWeb(object):
                 "data": {"time": 0.1}}),
             content_type='application/json')
 
-        assert json.loads(rv.data) == {u'error': u'job_id moo '
-                                                 'already exists'}, \
-            json.loads(rv.data)
+        assert json.loads(response.data) == {u'error': u'job_id moo already '
+                                                       'exists'}, \
+            json.loads(response.data)
 
     def test_post_with_job_error(self):
         '''If a job raises JobError then ... the response should contain the job id???'''
         # The 'example' job type (defined above) will raise JobError for this
         # data because the data has no "time" key.
         client = test_client()
-        rv = client.post(
+        response = client.post(
             '/job/missing_time',
             data=json.dumps({
                 "job_type": "example",
@@ -381,8 +394,8 @@ class TestWeb(object):
                 "data": {}}),
             content_type='application/json')
 
-        assert json.loads(rv.data)['job_id'] == "missing_time", \
-            json.loads(rv.data)
+        assert json.loads(response.data)['job_id'] == "missing_time", \
+            json.loads(response.data)
 
     def test_post_with_job_exception(self):
         '''If a job raises an exception the HTTP response should have an error.
@@ -395,7 +408,7 @@ class TestWeb(object):
         client = test_client()
         # The 'example' job type (defined above) will crash on this invalid
         # time value.
-        rv = client.post(
+        response = client.post(
             '/job/exception',
             data=json.dumps({
                 "job_type": "example",
@@ -403,8 +416,8 @@ class TestWeb(object):
                 "data": {"time": "not_a_time"}}),
             content_type='application/json')
 
-        assert json.loads(rv.data)['job_id'] == "exception", \
-            json.loads(rv.data)
+        assert json.loads(response.data)['job_id'] == "exception", \
+            json.loads(response.data)
 
     @httpretty.activate
     def test_get_job_with_known_error(self):
@@ -416,7 +429,7 @@ class TestWeb(object):
         '''
         client = test_client()
         event = mock_result_url(RESULT_URL)
-        rv = client.post(
+        response = client.post(
             '/job/missing_time',
             data=json.dumps({
                 "job_type": "example",
@@ -432,9 +445,9 @@ class TestWeb(object):
             "result_url was not called within {timeout} seconds".format(
                 timeout=timeout))
 
-        rv = client.get('/job/missing_time')
+        response = client.get('/job/missing_time')
 
-        job_status_data = json.loads(rv.data)
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
 
@@ -462,7 +475,7 @@ class TestWeb(object):
         '''
         client = test_client()
         event = mock_result_url(RESULT_URL)
-        rv = client.post(
+        response = client.post(
             '/job/exception',
             data=json.dumps({
                 "job_type": "example",
@@ -478,9 +491,9 @@ class TestWeb(object):
             "result_url was not called within {timeout} seconds".format(
                 timeout=timeout))
 
-        rv = client.get('/job/exception')
+        response = client.get('/job/exception')
 
-        job_status_data = json.loads(rv.data)
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
         error = job_status_data.pop('error')
@@ -544,7 +557,7 @@ class TestWeb(object):
                 event.set()
         httpretty.register_uri(httpretty.POST, RESULT_URL, body=result_url)
 
-        rv = client.post(
+        response = client.post(
             '/job/with_result',
             data=json.dumps({"job_type": "example",
                              "api_key": 42,
@@ -563,8 +576,8 @@ class TestWeb(object):
 
         login(client)
 
-        rv = client.get('/job/with_result')
-        job_status_data = json.loads(rv.data)
+        response = client.get('/job/with_result')
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
         assert job_status_data == {u'status': u'complete',
@@ -598,7 +611,7 @@ class TestWeb(object):
         httpretty.register_uri(
             httpretty.GET, test_callback_url, body=test_callback_was_called)
 
-        rv = client.post(
+        response = client.post(
             '/job/with_bad_result',
             data=json.dumps({
                 "job_type": "example",
@@ -614,8 +627,8 @@ class TestWeb(object):
                 timeout=timeout))
 
         login(client)
-        rv = client.get('/job/with_bad_result')
-        job_status_data = json.loads(rv.data)
+        response = client.get('/job/with_bad_result')
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
         assert job_status_data == {u'status': u'complete',
@@ -639,36 +652,36 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        rv = client.get('/job/not_there')
-        assert rv.status_code == 404, rv.status
-        error = json.loads(rv.data)
+        response = client.get('/job/not_there')
+        assert response.status_code == 404, response.status
+        error = json.loads(response.data)
         assert error == {u'error': u'job_id not found'}
 
     def test_not_authorized_to_view_job(self):
         '''Getting a job that you're not authorized to view should 403.'''
         client = test_client()
-        rv = client.post(
+        response = client.post(
             '/job/one_job',
             data=json.dumps({"job_type": "echo",
                              "api_key": 42}),
             content_type='application/json')
-        assert rv.status_code == 200, rv.status
-        job_status_data = json.loads(rv.data)
+        assert response.status_code == 200, response.status
+        job_status_data = json.loads(response.data)
         job_key = job_status_data['job_key']
-        rv = client.get('/job/one_job')
+        response = client.get('/job/one_job')
 
-        assert rv.status_code == 403, rv.status
-        error = json.loads(rv.data)
+        assert response.status_code == 403, response.status
+        error = json.loads(response.data)
         assert error == {u'error': u'not authorized'}
 
         headers = {'Authorization': job_key}
-        rv = client.get('/job/one_job', headers=headers)
-        assert rv.status_code == 200, rv.status
+        response = client.get('/job/one_job', headers=headers)
+        assert response.status_code == 200, response.status
 
     def test_bad_metadata(self):
         '''Posting a job with non-JSON mmetadata should error.'''
         client = test_client()
-        rv = client.post(
+        response = client.post(
             '/job/with_bad_metadata',
             data=json.dumps({"job_type": "example",
                              "api_key": 42,
@@ -676,14 +689,14 @@ class TestWeb(object):
                              "metadata": "meta"}),
             content_type='application/json')
 
-        return_value = json.loads(rv.data)
+        return_value = json.loads(response.data)
         assert return_value == {u'error': u'metadata has to be a '
                                           'json object'}, return_value
 
     def test_bad_url(self):
         '''Posting a job with an invalid result_url should error.'''
         client = test_client()
-        rv = client.post(
+        response = client.post(
             '/job/with_bad_result',
             data=json.dumps({"job_type": "example",
                              "api_key": 42,
@@ -692,7 +705,7 @@ class TestWeb(object):
                              "result_url": "ht//0.0.0.0:9091/resul"}),
             content_type='application/json')
 
-        return_value = json.loads(rv.data)
+        return_value = json.loads(response.data)
         assert return_value == {u'error': u'result_url has to start '
                                           'with http'}, return_value
 
@@ -704,7 +717,7 @@ class TestWeb(object):
         #has z because if this test failes will cause other tests to fail'''
 
         web.scheduler.misfire_grace_time = 0.000001
-        rv = client.post(
+        response = client.post(
             '/job/misfire',
             data=json.dumps({"job_type": "example",
                              "api_key": 42,
@@ -722,8 +735,8 @@ class TestWeb(object):
                 timeout=timeout))
 
         login(client)
-        rv = client.get('/job/misfire')
-        job_status_data = json.loads(rv.data)
+        response = client.get('/job/misfire')
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
         assert_equal(job_status_data, {u'status': u'error',
@@ -751,14 +764,14 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        rv = client.post('/job/echoraw',
-                      data=json.dumps({"metadata": {"key": "value",
-                                                    "moo": "moo"},
-                                       "job_type": "echo_raw",
-                                       "api_key": 42,
-                                       "data": "ping"}),
-                      content_type='application/json')
-        assert rv.data == 'ginp'
+        response = client.post(
+            '/job/echoraw',
+            data=json.dumps({"metadata": {"key": "value", "moo": "moo"},
+                             "job_type": "echo_raw",
+                             "api_key": 42,
+                             "data": "ping"}),
+            content_type='application/json')
+        assert response.data == 'ginp'
 
     def test_synchronous_post(self):
         '''Posting a synchronous job should get a JSON response with result.
@@ -769,16 +782,17 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        rv = client.post('/job/echobasic',
-                      data=json.dumps({"metadata": {"key": "value",
-                                                    "moo": "moo",
-                                                    "mimetype": "text/csv"},
-                                       "job_type": "echo",
-                                       "api_key": 42,
-                                       "data": "ping"}),
-                      content_type='application/json')
+        response = client.post(
+            '/job/echobasic',
+            data=json.dumps({"metadata": {"key": "value",
+                                          "moo": "moo",
+                                          "mimetype": "text/csv"},
+                             "job_type": "echo",
+                             "api_key": 42,
+                             "data": "ping"}),
+            content_type='application/json')
 
-        return_data = json.loads(rv.data)
+        return_data = json.loads(response.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         job_key = return_data.pop('job_key')
@@ -799,36 +813,38 @@ class TestWeb(object):
                                              "mimetype": "text/csv"}})
 
         login(client)
-        rv = client.get('/job/echobasic')
-        assert rv.status_code == 200, rv.status
-        job_status_data = json.loads(rv.data)
+        response = client.get('/job/echobasic')
+        assert response.status_code == 200, response.status
+        job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
 
         assert_equal(return_data, job_status_data)
 
         headers = {'Authorization': job_key}
-        rv = client.get('/job/echobasic/data', headers=headers)
-        assert rv.status_code == 200, rv.status
-        assert_equal(rv.data, u'>ping')
-        assert 'text/csv' in rv.content_type, rv.content_type
+        response = client.get('/job/echobasic/data', headers=headers)
+        assert response.status_code == 200, response.status
+        assert_equal(response.data, u'>ping')
+        assert 'text/csv' in response.content_type, response.content_type
 
-        rv = client.post('/job/echobasic',
-                      data=json.dumps({"job_type": "echo",
-                                       "api_key": 42,
-                                       "data": "ping"}),
-                      content_type='application/json')
+        response = client.post(
+            '/job/echobasic',
+            data=json.dumps({"job_type": "echo",
+                             "api_key": 42,
+                             "data": "ping"}),
+            content_type='application/json')
 
-        return_data = json.loads(rv.data)
+        return_data = json.loads(response.data)
         assert_equal(return_data, {u'error': u'job_id echobasic already exists'})
 
-        rv = client.post('/job/echoknownbad',
-                      data=json.dumps({"job_type": "echo",
-                                       "api_key": 42,
-                                       "data": ">ping"}),
-                      content_type='application/json')
-        assert rv.status_code == 200, rv.status
-        return_data = json.loads(rv.data)
+        response = client.post(
+            '/job/echoknownbad',
+            data=json.dumps({"job_type": "echo",
+                             "api_key": 42,
+                             "data": ">ping"}),
+            content_type='application/json')
+        assert response.status_code == 200, response.status
+        return_data = json.loads(response.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         return_data.pop('job_key')
@@ -842,21 +858,23 @@ class TestWeb(object):
                                u'logs': [],
                                u'metadata': {}})
 
-        rv = client.post('/job/echounknownbad',
-                      data=json.dumps({"job_type": "echo",
-                                       "api_key": 42,
-                                       "data": 1}),
-                      content_type='application/json')
-        return_data = json.loads(rv.data)
+        response = client.post(
+            '/job/echounknownbad',
+            data=json.dumps({"job_type": "echo",
+                             "api_key": 42,
+                             "data": 1}),
+            content_type='application/json')
+        return_data = json.loads(response.data)
         assert 'AttributeError' in return_data['error']
 
-        rv = client.post('/job/echobad_url',
-                      data=json.dumps({"job_type": "echo",
-                                       "api_key": 42,
-                                       "data": "moo",
-                                       "result_url": "http://bad_url"}),
-                      content_type='application/json')
-        return_data = json.loads(rv.data)
+        response = client.post(
+            '/job/echobad_url',
+            data=json.dumps({"job_type": "echo",
+                             "api_key": 42,
+                             "data": "moo",
+                             "result_url": "http://bad_url"}),
+            content_type='application/json')
+        return_data = json.loads(response.data)
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         return_data.pop('job_key')
@@ -882,13 +900,14 @@ class TestWeb(object):
         '''
         client = test_client()
         event = mock_result_url(RESULT_URL)
-        rv = client.post('/job/log',
-                      data=json.dumps({"metadata": {},
-                                       "job_type": "log",
-                                       "api_key": 42,
-                                       "data": "&ping",
-                                       "result_url": RESULT_URL}),
-                      content_type='application/json')
+        response = client.post(
+            '/job/log',
+            data=json.dumps({"metadata": {},
+                             "job_type": "log",
+                             "api_key": 42,
+                             "data": "&ping",
+                             "result_url": RESULT_URL}),
+            content_type='application/json')
 
         timeout = 10.0
         assert event.wait(timeout), (
@@ -896,14 +915,14 @@ class TestWeb(object):
                 timeout=timeout))
 
         login(client, username='testadmin', password='wrong')
-        rv = client.get('/job/log')
-        assert rv.status_code == 403, rv.status
+        response = client.get('/job/log')
+        assert response.status_code == 403, response.status
 
         login(client)
-        rv = client.get('/job/log')
-        assert rv.status_code == 200, rv.status
+        response = client.get('/job/log')
+        assert response.status_code == 200, response.status
 
-        return_data = json.loads(rv.data)
+        return_data = json.loads(response.data)
         logs = return_data['logs']
         assert len(logs) == 1, logs
         log = logs[0]
@@ -923,30 +942,31 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        rv = client.post('/job/to_be_deleted',
-                      data=json.dumps({"metadata": {"foo": "bar"},
-                                       "job_type": "echo",
-                                       "api_key": 42,
-                                       "data": "&ping"}),
-                      content_type='application/json')
-        assert rv.status_code == 200, rv.status
+        response = client.post(
+            '/job/to_be_deleted',
+            data=json.dumps({"metadata": {"foo": "bar"},
+                             "job_type": "echo",
+                             "api_key": 42,
+                             "data": "&ping"}),
+            content_type='application/json')
+        assert response.status_code == 200, response.status
 
-        rv = client.delete('/job/to_be_deleted')
-        assert rv.status_code == 403, rv.status
+        response = client.delete('/job/to_be_deleted')
+        assert response.status_code == 403, response.status
 
         login(client)
-        rv = client.delete('/job/to_be_deleted')
-        assert rv.status_code == 200, rv.status
+        response = client.delete('/job/to_be_deleted')
+        assert response.status_code == 200, response.status
 
-        rv = client.delete('/job/to_be_deleted')
-        assert rv.status_code == 404, rv.status
+        response = client.delete('/job/to_be_deleted')
+        assert response.status_code == 404, response.status
 
     def test_getting_job_data_for_missing_job(self):
         '''Getting the job data for a job that doesn't exist should 404.'''
         client = test_client()
         login(client)
-        rv = client.get('/job/somefoo/data')
-        assert rv.status_code == 404, rv.status
+        response = client.get('/job/somefoo/data')
+        assert response.status_code == 404, response.status
 
     def test_list(self):
         '''Tests for /job which should return a list of all the jobs.
@@ -996,32 +1016,32 @@ class TestWeb(object):
         db.add_pending_job(
             "job_13", str(uuid.uuid4()), "job_type", "result_url", "api_key")
 
-        rv = client.get('/job')
-        return_data = json.loads(rv.data)
+        response = client.get('/job')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 13, return_data['list']
 
-        rv = client.get('/job?_limit=1')
-        return_data = json.loads(rv.data)
+        response = client.get('/job?_limit=1')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 1, return_data['list']
 
-        rv = client.get('/job?_status=complete')
-        return_data = json.loads(rv.data)
+        response = client.get('/job?_status=complete')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 8, return_data['list']
 
-        rv = client.get('/job?key=value')
-        return_data = json.loads(rv.data)
+        response = client.get('/job?key=value')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 4, return_data['list']
 
-        rv = client.get('/job?key=value&moo=moo')
-        return_data = json.loads(rv.data)
+        response = client.get('/job?key=value&moo=moo')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 2, return_data['list']
 
-        rv = client.get('/job?key=value&moo=moo&moon=moon')
-        return_data = json.loads(rv.data)
+        response = client.get('/job?key=value&moo=moo&moon=moon')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 0, return_data['list']
 
-        rv = client.get('/job?key=value&moon=moon')
-        return_data = json.loads(rv.data)
+        response = client.get('/job?key=value&moon=moon')
+        return_data = json.loads(response.data)
         assert len(return_data['list']) == 0, return_data['list']
 
 
@@ -1055,18 +1075,18 @@ class TestWeb(object):
         original_number_of_jobs = self.number_of_jobs(client)
 
         # This should not delete any jobs because not authorized.
-        rv = client.delete('/job')
-        assert rv.status_code == 403, rv.status
+        response = client.delete('/job')
+        assert response.status_code == 403, response.status
         assert self.number_of_jobs(client) == original_number_of_jobs
 
         login(client)
 
         # This should not delete any jobs because the jobs aren't old enough.
-        rv = client.delete('/job')
-        assert rv.status_code == 200, rv.status
+        response = client.delete('/job')
+        assert response.status_code == 200, response.status
         assert self.number_of_jobs(client) == original_number_of_jobs
 
         # This should delete all the jobs.
-        rv = client.delete('/job?days=0')
-        assert rv.status_code == 200, rv.status
+        response = client.delete('/job?days=0')
+        assert response.status_code == 200, response.status
         assert self.number_of_jobs(client) == 0
