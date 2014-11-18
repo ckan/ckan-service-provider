@@ -468,8 +468,8 @@ class TestWeb(object):
                                    u'result_url': RESULT_URL}, job_status_data
 
         # get_job() shouldn't return the API key, either.
-        job = web.get_job(job_status_data['job_id'])
-        assert not job['api_key'], job
+        job_ = web.get_job(job_status_data['job_id'])
+        assert not job_['api_key'], job_
 
     @httpretty.activate
     def test_get_job_with_unknown_error(self):
@@ -515,8 +515,8 @@ class TestWeb(object):
         assert 'TypeError' in error[-1], error
 
         # get_job() shouldn't return the API key, either.
-        job = web.get_job(job_status_data['job_id'])
-        assert not job['api_key'], job
+        job_ = web.get_job(job_status_data['job_id'])
+        assert not job_['api_key'], job_
 
     @httpretty.activate
     def test_asynchronous_post_with_result_url(self):
@@ -648,8 +648,8 @@ class TestWeb(object):
                                    u'logs': [],
                                    u'result_url': RESULT_URL}, job_status_data
 
-        job = web.get_job(job_status_data['job_id'])
-        assert not job['api_key'], job
+        job_ = web.get_job(job_status_data['job_id'])
+        assert not job_['api_key'], job_
 
     def test_missing_job_id(self):
         '''Trying to get a job ID that doesn't exist should return an HTTP 404.
@@ -803,8 +803,8 @@ class TestWeb(object):
         return_data.pop('finished_timestamp')
         job_key = return_data.pop('job_key')
 
-        job = web.get_job(return_data['job_id'])
-        assert not job['api_key'], job
+        job_ = web.get_job(return_data['job_id'])
+        assert not job_['api_key'], job_
 
         assert_equal(return_data, {u'status': u'complete',
                                u'sent_data': u'ping',
