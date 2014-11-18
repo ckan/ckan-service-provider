@@ -287,6 +287,9 @@ class TestWeb(object):
         assert json.loads(response.data)['job_id'] == "moo", (
             json.loads(response.data))
 
+    # FIXME: I think there's actually a race condition here - if the
+    # asynchronous background job (running in another thread) finishes before
+    # we get to the assert it'l fail.
     def test_get_job_while_pending(self):
         '''Create a job with a custom ID and get the job while still pending.
 
