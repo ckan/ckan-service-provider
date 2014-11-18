@@ -719,7 +719,6 @@ class TestWeb(object):
         '''Jobs should error if not completed within the misfire_grace_time.'''
         client = test_client()
         event = mock_result_url(RESULT_URL)
-        #has z because if this test failes will cause other tests to fail'''
 
         web.scheduler.misfire_grace_time = 0.000001
         response = client.post(
