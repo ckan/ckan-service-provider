@@ -236,11 +236,7 @@ class TestWeb(object):
             {u'error': u'Too many arguments. Extra keys are foo'})
 
     def test_asynchronous_post_with_good_job(self):
-        '''A valid post to /job should get back a JSON object with a job ID.
-
-        Also tests a bunch of other stuff about /job.
-
-        '''
+        '''A valid post to /job should get back a JSON object with a job ID.'''
         client = test_client()
         response = client.post(
             '/job',
