@@ -145,7 +145,7 @@ def log(task_id, input):
     logger.warn('Just a warning')
 
 
-class TestWeb():
+class TestWeb(object):
 
     def teardown(self):
         reset_db()
