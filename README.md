@@ -1,7 +1,7 @@
 # CKAN Service Provier
 
-[![Build Status](https://travis-ci.org/okfn/ckan-service-provider.png?branch=master)](https://travis-ci.org/okfn/ckan-service-provider)
-[![Coverage Status](https://coveralls.io/repos/okfn/ckan-service-provider/badge.png?branch=master)](https://coveralls.io/r/okfn/ckan-service-provider?branch=master)
+[![Build Status](https://travis-ci.org/ckan/ckan-service-provider.png?branch=master)](https://travis-ci.org/ckan/ckan-service-provider)
+[![Coverage Status](https://coveralls.io/repos/ckan/ckan-service-provider/badge.png?branch=master)](https://coveralls.io/r/ckan/ckan-service-provider?branch=master)
 
 __WORK IN PROGRESS__
 
