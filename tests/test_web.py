@@ -690,7 +690,7 @@ class TestWeb(object):
         assert response.status_code == 200, response.status
 
     def test_bad_metadata(self):
-        '''Posting a job with non-JSON mmetadata should error.'''
+        '''Posting a job with non-JSON metadata should error.'''
         client = test_client()
         response = client.post(
             '/job/with_bad_metadata',
