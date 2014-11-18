@@ -937,10 +937,10 @@ class TestWeb(object):
         return_data = json.loads(response.data)
         logs = return_data['logs']
         assert len(logs) == 1, logs
-        log = logs[0]
-        log.pop('timestamp')
-        log.pop('lineno')
-        assert_equal(log, {
+        log_ = logs[0]
+        log_.pop('timestamp')
+        log_.pop('lineno')
+        assert_equal(log_, {
             u'level': u'WARNING',
             u'module': u'test_web',
             u'funcName': u'log',
