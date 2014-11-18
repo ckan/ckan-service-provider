@@ -715,7 +715,7 @@ class TestWeb(object):
                                           'with http'}, return_value
 
     @httpretty.activate
-    def test_zz_misfire(self):
+    def test_misfire(self):
         '''Jobs should error if not completed within the misfire_grace_time.'''
         client = test_client()
         event = mock_result_url(RESULT_URL)
