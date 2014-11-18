@@ -747,7 +747,6 @@ class TestWeb(object):
                                    u'sent_data': {u'time': 0.1},
                                    u'job_id': u'misfire',
                                    u'job_type': u'example',
-                                   u'result_url': None,
                                    u'error': u'Job delayed too long, '
                                              'service full',
                                    u'data': None,
