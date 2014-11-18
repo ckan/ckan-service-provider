@@ -106,8 +106,6 @@ def echo(task_id, input):
         raise util.JobError('Do not start message with >')
     if input['data'].startswith('#'):
         raise Exception('Something went totally wrong')
-    #if input['data'].startswith('&'):
-    #    util.logger.warn('Just a warning')
     return '>' + input['data']
 
 
