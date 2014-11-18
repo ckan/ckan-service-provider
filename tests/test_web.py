@@ -566,7 +566,6 @@ class TestWeb(object):
         response = client.post(
             '/job/with_result',
             data=json.dumps({"job_type": "example",
-                             "api_key": 42,
                              "data": {"time": 0.1},
                              "metadata": {'key': 'value'},
                              "result_url": RESULT_URL,
