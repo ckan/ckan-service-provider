@@ -110,44 +110,44 @@ def number_of_jobs(client):
 
 
 @job.sync
-def echo(task_id, input):
-    if input['data'].startswith('>'):
+def echo(task_id, input_):
+    if input_['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
-    if input['data'].startswith('#'):
+    if input_['data'].startswith('#'):
         raise Exception('Something went totally wrong')
-    return '>' + input['data']
+    return '>' + input_['data']
 
 
 @job.sync
-def echo_raw(task_id, input):
-    if input['data'].startswith('>'):
+def echo_raw(task_id, input_):
+    if input_['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
 
     def raw():
-        for x in sorted(input['data']):
+        for x in sorted(input_['data']):
             yield x
 
     return raw
 
 
 @job.async
-def example(task_id, input):
-    if 'time' not in input['data']:
+def example(task_id, input_):
+    if 'time' not in input_['data']:
         raise util.JobError('time not in input')
 
-    time.sleep(input['data']['time'])
-    return 'Slept for ' + str(input['data']['time']) + ' seconds.'
+    time.sleep(input_['data']['time'])
+    return 'Slept for ' + str(input_['data']['time']) + ' seconds.'
 
 
 @job.async
-def failing(task_id, input):
+def failing(task_id, input_):
     time.sleep(0.1)
     raise util.JobError('failed')
 
 
 @job.async
-def log(task_id, input):
-    handler = util.StoringHandler(task_id, input)
+def log(task_id, input_):
+    handler = util.StoringHandler(task_id, input_)
     logger = logging.Logger(task_id)
     logger.addHandler(handler)
 
