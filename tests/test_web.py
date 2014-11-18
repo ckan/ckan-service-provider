@@ -1,5 +1,4 @@
 import os
-import subprocess
 import json
 import time
 import logging
@@ -9,7 +8,6 @@ import threading
 import httpretty
 from nose.tools import assert_equal
 
-import requests
 import ckanserviceprovider.web as web
 import ckanserviceprovider.job as job
 import ckanserviceprovider.util as util
