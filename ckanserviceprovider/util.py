@@ -12,6 +12,16 @@ class JobError(Exception):
     pass
 
 
+class HttpError(JobError):
+    '''A Job Error raised by jobs that have are caused by http errors'''
+    def __init__(self, message, http_code=None, request_url=None,
+                 response=None):
+        super(JobError, self).__init__(message)
+        self.http_code=http_code
+        self.request_url=request_url
+        self.response=response
+
+
 class StoringHandler(logging.Handler):
     '''A handler that stores the logging records
     in the database.'''

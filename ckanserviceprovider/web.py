@@ -180,7 +180,13 @@ def job_listener(event):
             'Job delayed too long, service full')
     elif event.exception:
         update_dict['status'] = 'error'
-        if isinstance(event.exception, util.JobError):
+        if isinstance(event.exception, util.HttpError):
+            update_dict['error'] = json.dumps({
+                'code': event.exception.http_code,
+                'message': event.exception.message,
+                'response': event.exception.response,
+            })
+        elif isinstance(event.exception, util.JobError):
             update_dict['error'] = json.dumps(event.exception.message)
         else:
             update_dict['error'] = \
