@@ -176,7 +176,6 @@ class TestWeb(object):
     def test_content_type(self):
         '''Pages should have content_type "application/json".'''
         client = test_client()
-        # make sure that we get json
         for page in ['/job', '/status', '/job/foo']:
             response = client.get(page)
             assert_equal(response.content_type, 'application/json')
