@@ -58,6 +58,7 @@ To release a new version of ckanserviceprovider:
 
    ```bash
    python setup.py sdist
+   python setup.py sdist upload
    ```
 
    You may want to test installing and running the new version from PyPI in a
