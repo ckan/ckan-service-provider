@@ -6,3 +6,5 @@ syntax: glob
 ckanserviceprovider.egg-info/*
 *.db
 settings_local.py
+dist/*
+build/*

@@ -1,6 +1,0 @@
-APScheduler==2.0.3
-Flask==0.9
-SQLAlchemy==0.7.8
-requests==0.14.1
-flask-admin
-flask-login

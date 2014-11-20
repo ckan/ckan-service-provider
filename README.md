@@ -15,6 +15,8 @@ Have a look at `\example` and see how jobs are defeined. Run the example server 
 
  * Run ```pip install -r requirements.txt```
 
+ * If you want to run the tests (`nosetests`) or build the docs,
+   you need to run `pip install -r requirements-dev.txt` first.
 
 ##Configuration
 
