@@ -246,7 +246,7 @@ def status():
 
     counts = {}
     for job_status in job_statuses:
-        counts[job_status] = db.engine.execute(
+        counts[job_status] = db.ENGINE.execute(
             db.jobs_table.count()
             .where(db.jobs_table.c.status == job_status)
         ).first()[0]
@@ -391,7 +391,7 @@ def job_list():
             sql.func.count(db.jobs_table.c.job_id) == len(ors)
         )
 
-    result = db.engine.execute(select)
+    result = db.ENGINE.execute(select)
     listing = []
     for (job_id,) in result:
         listing.append(flask.url_for('job_status', job_id=job_id))
@@ -463,7 +463,7 @@ def job_delete(job_id):
     :statuscode 404: the job could not be found
     :statuscode 409: an error occurred
     '''
-    conn = db.engine.connect()
+    conn = db.ENGINE.connect()
     job = db.get_job(job_id)
     if not job:
         return json.dumps({'error': 'job_id not found'}), 404, headers
@@ -508,7 +508,7 @@ def _clear_jobs(days=None):
             days = int(days)
         except Exception as e:
             return json.dumps({'error': str(e)}), 409, headers
-    conn = db.engine.connect()
+    conn = db.ENGINE.connect()
     trans = conn.begin()
     date = datetime.datetime.now() - datetime.timedelta(days=days)
     try:
@@ -722,7 +722,7 @@ def is_authorized(job=None):
 
 
 def update_job(job_id, update_dict):
-    db.engine.execute(db.jobs_table.update()
+    db.ENGINE.execute(db.jobs_table.update()
                       .where(db.jobs_table.c.job_id == job_id)
                       .values(**update_dict))
 

@@ -21,7 +21,7 @@ class StoringHandler(logging.Handler):
         self.input = input
 
     def emit(self, record):
-        conn = db.engine.connect()
+        conn = db.ENGINE.connect()
         try:
             conn.execute(db.logs_table.insert().values(
                 job_id=self.task_id,

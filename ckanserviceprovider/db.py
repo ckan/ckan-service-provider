@@ -8,7 +8,7 @@ import sqlalchemy
 
 # Some module-global constants. These are accessed directly by other modules.
 # It would be good to factor these out.
-engine = None
+ENGINE = None
 metadata = None
 jobs_table = None
 metadata_table = None
@@ -32,13 +32,13 @@ def init(uri, echo=False):
     :type echo: bool
 
     """
-    global engine, metadata, jobs_table, metadata_table, logs_table
-    engine = sqlalchemy.create_engine(uri, echo=echo, convert_unicode=True)
-    metadata = sqlalchemy.MetaData(engine)
+    global ENGINE, metadata, jobs_table, metadata_table, logs_table
+    ENGINE = sqlalchemy.create_engine(uri, echo=echo, convert_unicode=True)
+    metadata = sqlalchemy.MetaData(ENGINE)
     jobs_table = _init_jobs_table()
     metadata_table = _init_metadata_table()
     logs_table = _init_logs_table()
-    metadata.create_all(engine)
+    metadata.create_all(ENGINE)
 
 
 def drop_all():
@@ -50,7 +50,7 @@ def drop_all():
 
     """
     if metadata:
-        metadata.drop_all(engine)
+        metadata.drop_all(ENGINE)
 
 
 def get_job(job_id):
@@ -60,7 +60,7 @@ def get_job(job_id):
     job with the given job_id.
 
     """
-    result = engine.execute(
+    result = ENGINE.execute(
         jobs_table.select().where(jobs_table.c.job_id == job_id)).first()
 
     if not result:
@@ -129,7 +129,7 @@ def add_pending_job(job_id, job_key, job_type, api_key,
     if not metadata:
         metadata = {}
 
-    conn = engine.connect()
+    conn = ENGINE.connect()
     trans = conn.begin()
     try:
         conn.execute(jobs_table.insert().values(
@@ -177,7 +177,7 @@ def mark_job_as_completed(job_id, data=None):
     """
     status = "complete"
     finished_timestamp = datetime.datetime.now()
-    engine.execute(
+    ENGINE.execute(
         jobs_table.update()
         .where(jobs_table.c.job_id == job_id)
         .values(status=status, finished_timestamp=finished_timestamp,
@@ -239,7 +239,7 @@ def _init_logs_table():
 
 def _get_metadata(job_id):
     """Return any metadata for the given job_id from the metadata table."""
-    results = engine.execute(
+    results = ENGINE.execute(
         metadata_table.select().where(
             metadata_table.c.job_id == job_id)).fetchall()
     metadata = {}
@@ -253,7 +253,7 @@ def _get_metadata(job_id):
 
 def _get_logs(job_id):
     """Return any logs for the given job_id from the logs table."""
-    results = engine.execute(
+    results = ENGINE.execute(
         logs_table.select().where(logs_table.c.job_id == job_id)).fetchall()
     results = map(dict, results)
 
