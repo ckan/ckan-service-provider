@@ -23,7 +23,7 @@ class StoringHandler(logging.Handler):
     def emit(self, record):
         conn = db.ENGINE.connect()
         try:
-            conn.execute(db.logs_table.insert().values(
+            conn.execute(db.LOGS_TABLE.insert().values(
                 job_id=self.task_id,
                 timestamp=datetime.datetime.now(),
                 message=record.getMessage(),
