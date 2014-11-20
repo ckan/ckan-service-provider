@@ -185,7 +185,7 @@ def mark_job_as_completed(job_id, data=None):
 
 
 def _init_jobs_table():
-    """Initialise the JOBS_TABLE object."""
+    """Initialise the "jobs" table in the db."""
     _jobs_table = sqlalchemy.Table(
         'jobs', _METADATA,
         sqlalchemy.Column('job_id', sqlalchemy.UnicodeText, primary_key=True),
@@ -207,7 +207,7 @@ def _init_jobs_table():
 
 
 def _init_metadata_table():
-    """Initialise the METADATA_TABLE object."""
+    """Initialise the "metadata" table in the db."""
     _metadata_table = sqlalchemy.Table(
         'metadata', _METADATA,
         sqlalchemy.Column(
@@ -221,7 +221,7 @@ def _init_metadata_table():
 
 
 def _init_logs_table():
-    """Initialise the LOGS_TABLE object."""
+    """Initialise the "logs" table in the db."""
     _logs_table = sqlalchemy.Table(
         'logs', _METADATA,
         sqlalchemy.Column(
