@@ -4,6 +4,7 @@ python:
 install:
   - pip install -r requirements-dev.txt --use-mirrors
   - pip install coveralls --use-mirrors
+  - pip install .
 script: nosetests --with-coverage --cover-package=ckanserviceprovider
 after_success:
   - coveralls
