@@ -12,8 +12,6 @@
 
 # CKAN Service Provier
 
-__WORK IN PROGRESS__
-
 A library for making web services that make functions available as synchronous
 or asynchronous jobs. Used by [DataPusher][].
 
