@@ -10,7 +10,7 @@
 [PyPI]: https://pypi.python.org/pypi/ckanserviceprovider
 
 
-# CKAN Service Provier
+# CKAN Service Provider
 
 A library for making web services that make functions available as synchronous
 or asynchronous jobs. Used by [DataPusher][].
