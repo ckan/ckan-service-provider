@@ -369,8 +369,8 @@ def job_list():
     select = sql.select(
         [db.JOBS_TABLE.c.job_id],
         from_obj=[db.JOBS_TABLE.outerjoin(
-            db.metadata_table,
-            db.JOBS_TABLE.c.job_id == db.metadata_table.c.job_id)
+            db.METADATA_TABLE,
+            db.JOBS_TABLE.c.job_id == db.METADATA_TABLE.c.job_id)
         ]).\
         group_by(db.JOBS_TABLE.c.job_id).\
         order_by(db.JOBS_TABLE.c.requested_timestamp.desc()).\
@@ -382,8 +382,8 @@ def job_list():
 
     ors = []
     for key, value in args.iteritems():
-        ors.append(sql.and_(db.metadata_table.c.key == key,
-                   db.metadata_table.c.value == value))
+        ors.append(sql.and_(db.METADATA_TABLE.c.key == key,
+                   db.METADATA_TABLE.c.value == value))
 
     if ors:
         select = select.where(sql.or_(*ors))

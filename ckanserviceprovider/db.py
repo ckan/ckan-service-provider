@@ -11,7 +11,7 @@ import sqlalchemy
 ENGINE = None
 _METADATA = None
 JOBS_TABLE = None
-metadata_table = None
+METADATA_TABLE = None
 logs_table = None
 
 
@@ -32,11 +32,11 @@ def init(uri, echo=False):
     :type echo: bool
 
     """
-    global ENGINE, _METADATA, JOBS_TABLE, metadata_table, logs_table
+    global ENGINE, _METADATA, JOBS_TABLE, METADATA_TABLE, logs_table
     ENGINE = sqlalchemy.create_engine(uri, echo=echo, convert_unicode=True)
     _METADATA = sqlalchemy.MetaData(ENGINE)
     JOBS_TABLE = _init_jobs_table()
-    metadata_table = _init_metadata_table()
+    METADATA_TABLE = _init_metadata_table()
     logs_table = _init_logs_table()
     _METADATA.create_all(ENGINE)
 
@@ -157,7 +157,7 @@ def add_pending_job(job_id, job_key, job_type, api_key,
                  "type": type_}
             )
         if inserts:
-            conn.execute(metadata_table.insert(), inserts)
+            conn.execute(METADATA_TABLE.insert(), inserts)
         trans.commit()
     except Exception:
         trans.rollback()
@@ -207,7 +207,7 @@ def _init_jobs_table():
 
 
 def _init_metadata_table():
-    """Initialise the metadata_table object."""
+    """Initialise the METADATA_TABLE object."""
     _metadata_table = sqlalchemy.Table(
         'metadata', _METADATA,
         sqlalchemy.Column(
@@ -240,8 +240,8 @@ def _init_logs_table():
 def _get_metadata(job_id):
     """Return any metadata for the given job_id from the metadata table."""
     results = ENGINE.execute(
-        metadata_table.select().where(
-            metadata_table.c.job_id == job_id)).fetchall()
+        METADATA_TABLE.select().where(
+            METADATA_TABLE.c.job_id == job_id)).fetchall()
     metadata = {}
     for row in results:
         value = row['value']
