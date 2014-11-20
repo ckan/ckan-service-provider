@@ -2,6 +2,7 @@
 [![Coverage Status](https://coveralls.io/repos/ckan/ckan-service-provider/badge.png?branch=master)](https://coveralls.io/r/ckan/ckan-service-provider?branch=master)
 
 [DataPusher]: https://github.com/okfn/datapusher
+[PyPI]: https://pypi.python.org/pypi/ckanserviceprovider
 
 
 # CKAN Service Provier
@@ -54,7 +55,7 @@ To release a new version of ckanserviceprovider:
 1. Increment the version number in [setup.py](setup.py)
 
 2. Build a source distribution of the new version and publish it to
-   [pypi.python.org](http://pypi.python.org/):
+   [PyPI][]:
 
    ```bash
    python setup.py sdist
