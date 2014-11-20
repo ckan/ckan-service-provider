@@ -255,9 +255,10 @@ def _get_logs(job_id):
     """Return any logs for the given job_id from the logs table."""
     results = ENGINE.execute(
         LOGS_TABLE.select().where(LOGS_TABLE.c.job_id == job_id)).fetchall()
-    results = map(dict, results)
 
-    def remove_job_id(d):
-        d.pop('job_id')
-        return d
-    return map(remove_job_id, results)
+    results = [dict(result) for result in results]
+
+    for result in results:
+        result.pop("job_id")
+
+    return results
