@@ -270,7 +270,7 @@ class TestWeb(object):
             "result_url was not called within {timeout} seconds".format(
                 timeout=timeout))
 
-        job_ = web.get_job(return_data['job_id'])
+        job_ = db.get_job(return_data['job_id'])
         assert not job_['api_key'], job_
 
     def test_post_job_with_custom_id(self):
@@ -473,7 +473,7 @@ class TestWeb(object):
                                    u'result_url': RESULT_URL}, job_status_data
 
         # get_job() shouldn't return the API key, either.
-        job_ = web.get_job(job_status_data['job_id'])
+        job_ = db.get_job(job_status_data['job_id'])
         assert not job_['api_key'], job_
 
     @httpretty.activate
@@ -520,7 +520,7 @@ class TestWeb(object):
         assert 'TypeError' in error[-1], error
 
         # get_job() shouldn't return the API key, either.
-        job_ = web.get_job(job_status_data['job_id'])
+        job_ = db.get_job(job_status_data['job_id'])
         assert not job_['api_key'], job_
 
     @httpretty.activate
@@ -653,7 +653,7 @@ class TestWeb(object):
                                    u'logs': [],
                                    u'result_url': RESULT_URL}, job_status_data
 
-        job_ = web.get_job(job_status_data['job_id'])
+        job_ = db.get_job(job_status_data['job_id'])
         assert not job_['api_key'], job_
 
     def test_missing_job_id(self):
@@ -807,7 +807,7 @@ class TestWeb(object):
         return_data.pop('finished_timestamp')
         job_key = return_data.pop('job_key')
 
-        job_ = web.get_job(return_data['job_id'])
+        job_ = db.get_job(return_data['job_id'])
         assert not job_['api_key'], job_
 
         assert_equal(

@@ -193,7 +193,7 @@ def job_listener(event):
 
     update_dict['api_key'] = None
 
-    job = get_job(job_id)
+    job = db.get_job(job_id)
     api_key = job['api_key']
     update_job(job_id, update_dict)
     result_ok = send_result(job_id, api_key)
@@ -439,7 +439,7 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     '''
-    job_dict = get_job(job_id)
+    job_dict = db.get_job(job_id)
     if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     if not ignore_auth and not is_authorized(job_dict):
@@ -464,7 +464,7 @@ def job_delete(job_id):
     :statuscode 409: an error occurred
     '''
     conn = db.engine.connect()
-    job = get_job(job_id)
+    job = db.get_job(job_id)
     if not job:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     if not is_authorized(job):
@@ -537,7 +537,7 @@ def job_data(job_id):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     '''
-    job_dict = get_job(job_id)
+    job_dict = db.get_job(job_id)
     if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     if not is_authorized(job_dict):
@@ -680,7 +680,7 @@ def run_synchronous_job(job, job_id, job_key, input):
         update_dict['api_key'] = None
         update_dict['finished_timestamp'] = datetime.datetime.now()
 
-        api_key = get_job(job_id)['api_key']
+        api_key = db.get_job(job_id)['api_key']
         update_job(job_id, update_dict)
     result_ok = send_result(job_id, api_key)
 
@@ -733,7 +733,7 @@ def send_result(job_id, api_key=None):
     If api_key is provided, it is used, otherwiese
     the key from the job will be used.
     '''
-    job_dict = get_job(job_id)
+    job_dict = db.get_job(job_id)
     result_url = job_dict.get('result_url')
     if not result_url:
         return True
@@ -757,55 +757,6 @@ def send_result(job_id, api_key=None):
         return False
 
     return result.status_code == requests.codes.ok
-
-
-def get_job(job_id):
-    result_dict = {}
-    result = db.engine.execute(db.jobs_table.select()
-                               .where(db.jobs_table.c.job_id == job_id)
-                               ).first()
-    if not result:
-        return None
-    fields = result.keys()
-    for field in fields:
-        value = getattr(result, field)
-        if value is None:
-            result_dict[field] = value
-        elif field in ('sent_data', 'data', 'error'):
-            result_dict[field] = json.loads(value)
-        elif isinstance(value, datetime.datetime):
-            result_dict[field] = value.isoformat()
-        else:
-            result_dict[field] = unicode(value)
-    result_dict['metadata'] = get_metadata(job_id)
-    result_dict['logs'] = get_logs(job_id)
-
-    return result_dict
-
-
-def get_metadata(job_id):
-    results = db.engine.execute(db.metadata_table.select()
-                                .where(db.metadata_table.c.job_id ==
-                                       job_id)).fetchall()
-    metadata = {}
-    for row in results:
-        value = row['value']
-        if row['type'] == 'json':
-            value = json.loads(value)
-        metadata[row['key']] = value
-    return metadata
-
-
-def get_logs(job_id):
-    results = db.engine.execute(db.logs_table.select()
-                                .where(db.logs_table.c.job_id ==
-                                       job_id)).fetchall()
-    results = map(dict, results)
-
-    def remove_job_id(d):
-        d.pop('job_id')
-        return d
-    return map(remove_job_id, results)
 
 
 def main():

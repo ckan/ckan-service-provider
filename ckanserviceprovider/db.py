@@ -53,9 +53,41 @@ def drop_all():
         metadata.drop_all(engine)
 
 
+def get_job(job_id):
+    """Get a job from the jobs table.
+
+    Returns a dictionary representation of the job, or None if there was no
+    job with the given job_id.
+
+    """
+    result = engine.execute(
+        jobs_table.select().where(jobs_table.c.job_id == job_id)).first()
+
+    if not result:
+        return None
+
+    # Turn the result into a dictionary representation of the job.
+    result_dict = {}
+    for field in result.keys():
+        value = getattr(result, field)
+        if value is None:
+            result_dict[field] = value
+        elif field in ('sent_data', 'data', 'error'):
+            result_dict[field] = json.loads(value)
+        elif isinstance(value, datetime.datetime):
+            result_dict[field] = value.isoformat()
+        else:
+            result_dict[field] = unicode(value)
+
+    result_dict['metadata'] = _get_metadata(job_id)
+    result_dict['logs'] = _get_logs(job_id)
+
+    return result_dict
+
+
 def add_pending_job(job_id, job_key, job_type, api_key,
                     data=None, metadata=None, result_url=None):
-    """Add a job with status "pending" to the jobs table.
+    """Add a new job with status "pending" to the jobs table.
 
     All code that adds jobs to the jobs table should go through this function.
     Code that adds to the jobs table manually should be refactored to use this
@@ -203,3 +235,29 @@ def _init_logs_table():
         sqlalchemy.Column('lineno', sqlalchemy.Integer)
         )
     return _logs_table
+
+
+def _get_metadata(job_id):
+    """Return any metadata for the given job_id from the metadata table."""
+    results = engine.execute(
+        metadata_table.select().where(
+            metadata_table.c.job_id == job_id)).fetchall()
+    metadata = {}
+    for row in results:
+        value = row['value']
+        if row['type'] == 'json':
+            value = json.loads(value)
+        metadata[row['key']] = value
+    return metadata
+
+
+def _get_logs(job_id):
+    """Return any logs for the given job_id from the logs table."""
+    results = engine.execute(
+        logs_table.select().where(logs_table.c.job_id == job_id)).fetchall()
+    results = map(dict, results)
+
+    def remove_job_id(d):
+        d.pop('job_id')
+        return d
+    return map(remove_job_id, results)
