@@ -6,10 +6,10 @@ import json
 import sqlalchemy
 
 
-# Some module-global constants. These are accessed directly by other modules.
-# It would be good to factor these out.
+# Some module-global constants. Some of these are accessed directly by other
+# modules.  It would be good to factor these out.
 ENGINE = None
-metadata = None
+_METADATA = None
 jobs_table = None
 metadata_table = None
 logs_table = None
@@ -32,13 +32,13 @@ def init(uri, echo=False):
     :type echo: bool
 
     """
-    global ENGINE, metadata, jobs_table, metadata_table, logs_table
+    global ENGINE, _METADATA, jobs_table, metadata_table, logs_table
     ENGINE = sqlalchemy.create_engine(uri, echo=echo, convert_unicode=True)
-    metadata = sqlalchemy.MetaData(ENGINE)
+    _METADATA = sqlalchemy.MetaData(ENGINE)
     jobs_table = _init_jobs_table()
     metadata_table = _init_metadata_table()
     logs_table = _init_logs_table()
-    metadata.create_all(ENGINE)
+    _METADATA.create_all(ENGINE)
 
 
 def drop_all():
@@ -49,8 +49,8 @@ def drop_all():
     apscheduler's tables will also be deleted).
 
     """
-    if metadata:
-        metadata.drop_all(ENGINE)
+    if _METADATA:
+        _METADATA.drop_all(ENGINE)
 
 
 def get_job(job_id):
@@ -187,7 +187,7 @@ def mark_job_as_completed(job_id, data=None):
 def _init_jobs_table():
     """Initialise the jobs_table object."""
     _jobs_table = sqlalchemy.Table(
-        'jobs', metadata,
+        'jobs', _METADATA,
         sqlalchemy.Column('job_id', sqlalchemy.UnicodeText, primary_key=True),
         sqlalchemy.Column('job_type', sqlalchemy.UnicodeText),
         sqlalchemy.Column('status', sqlalchemy.UnicodeText, index=True),
@@ -209,7 +209,7 @@ def _init_jobs_table():
 def _init_metadata_table():
     """Initialise the metadata_table object."""
     _metadata_table = sqlalchemy.Table(
-        'metadata', metadata,
+        'metadata', _METADATA,
         sqlalchemy.Column(
             'job_id', sqlalchemy.ForeignKey("jobs.job_id", ondelete="CASCADE"),
             nullable=False, primary_key=True),
@@ -223,7 +223,7 @@ def _init_metadata_table():
 def _init_logs_table():
     """Initialise the logs_table object."""
     _logs_table = sqlalchemy.Table(
-        'logs', metadata,
+        'logs', _METADATA,
         sqlalchemy.Column(
             'job_id', sqlalchemy.ForeignKey("jobs.job_id", ondelete="CASCADE"),
             nullable=False),
