@@ -10,7 +10,7 @@ import sqlalchemy
 # modules.  It would be good to factor these out.
 ENGINE = None
 _METADATA = None
-jobs_table = None
+JOBS_TABLE = None
 metadata_table = None
 logs_table = None
 
@@ -32,10 +32,10 @@ def init(uri, echo=False):
     :type echo: bool
 
     """
-    global ENGINE, _METADATA, jobs_table, metadata_table, logs_table
+    global ENGINE, _METADATA, JOBS_TABLE, metadata_table, logs_table
     ENGINE = sqlalchemy.create_engine(uri, echo=echo, convert_unicode=True)
     _METADATA = sqlalchemy.MetaData(ENGINE)
-    jobs_table = _init_jobs_table()
+    JOBS_TABLE = _init_jobs_table()
     metadata_table = _init_metadata_table()
     logs_table = _init_logs_table()
     _METADATA.create_all(ENGINE)
@@ -61,7 +61,7 @@ def get_job(job_id):
 
     """
     result = ENGINE.execute(
-        jobs_table.select().where(jobs_table.c.job_id == job_id)).first()
+        JOBS_TABLE.select().where(JOBS_TABLE.c.job_id == job_id)).first()
 
     if not result:
         return None
@@ -132,7 +132,7 @@ def add_pending_job(job_id, job_key, job_type, api_key,
     conn = ENGINE.connect()
     trans = conn.begin()
     try:
-        conn.execute(jobs_table.insert().values(
+        conn.execute(JOBS_TABLE.insert().values(
             job_id=job_id,
             job_type=job_type,
             status='pending',
@@ -178,14 +178,14 @@ def mark_job_as_completed(job_id, data=None):
     status = "complete"
     finished_timestamp = datetime.datetime.now()
     ENGINE.execute(
-        jobs_table.update()
-        .where(jobs_table.c.job_id == job_id)
+        JOBS_TABLE.update()
+        .where(JOBS_TABLE.c.job_id == job_id)
         .values(status=status, finished_timestamp=finished_timestamp,
                 api_key=None, data=data))
 
 
 def _init_jobs_table():
-    """Initialise the jobs_table object."""
+    """Initialise the JOBS_TABLE object."""
     _jobs_table = sqlalchemy.Table(
         'jobs', _METADATA,
         sqlalchemy.Column('job_id', sqlalchemy.UnicodeText, primary_key=True),

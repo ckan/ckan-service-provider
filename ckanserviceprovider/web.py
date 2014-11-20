@@ -247,8 +247,8 @@ def status():
     counts = {}
     for job_status in job_statuses:
         counts[job_status] = db.ENGINE.execute(
-            db.jobs_table.count()
-            .where(db.jobs_table.c.status == job_status)
+            db.JOBS_TABLE.count()
+            .where(db.JOBS_TABLE.c.status == job_status)
         ).first()[0]
 
     return flask.jsonify(
@@ -367,18 +367,18 @@ def job_list():
     offset = args.pop('_offset', 0)
 
     select = sql.select(
-        [db.jobs_table.c.job_id],
-        from_obj=[db.jobs_table.outerjoin(
+        [db.JOBS_TABLE.c.job_id],
+        from_obj=[db.JOBS_TABLE.outerjoin(
             db.metadata_table,
-            db.jobs_table.c.job_id == db.metadata_table.c.job_id)
+            db.JOBS_TABLE.c.job_id == db.metadata_table.c.job_id)
         ]).\
-        group_by(db.jobs_table.c.job_id).\
-        order_by(db.jobs_table.c.requested_timestamp.desc()).\
+        group_by(db.JOBS_TABLE.c.job_id).\
+        order_by(db.JOBS_TABLE.c.requested_timestamp.desc()).\
         limit(limit).offset(offset)
 
     status = args.pop('_status', None)
     if status:
-        select = select.where(db.jobs_table.c.status == status)
+        select = select.where(db.JOBS_TABLE.c.status == status)
 
     ors = []
     for key, value in args.iteritems():
@@ -388,7 +388,7 @@ def job_list():
     if ors:
         select = select.where(sql.or_(*ors))
         select = select.having(
-            sql.func.count(db.jobs_table.c.job_id) == len(ors)
+            sql.func.count(db.JOBS_TABLE.c.job_id) == len(ors)
         )
 
     result = db.ENGINE.execute(select)
@@ -471,8 +471,8 @@ def job_delete(job_id):
         return json.dumps({'error': 'not authorized'}), 403, headers
     trans = conn.begin()
     try:
-        conn.execute(db.jobs_table.delete().where(
-                     db.jobs_table.c.job_id == job_id))
+        conn.execute(db.JOBS_TABLE.delete().where(
+                     db.JOBS_TABLE.c.job_id == job_id))
         trans.commit()
         return json.dumps({'success': True}), 200, headers
     except Exception, e:
@@ -512,8 +512,8 @@ def _clear_jobs(days=None):
     trans = conn.begin()
     date = datetime.datetime.now() - datetime.timedelta(days=days)
     try:
-        conn.execute(db.jobs_table.delete().where(
-                     db.jobs_table.c.finished_timestamp < date))
+        conn.execute(db.JOBS_TABLE.delete().where(
+                     db.JOBS_TABLE.c.finished_timestamp < date))
         trans.commit()
         return json.dumps({'success': True}), 200, headers
     except Exception as e:
@@ -722,8 +722,8 @@ def is_authorized(job=None):
 
 
 def update_job(job_id, update_dict):
-    db.ENGINE.execute(db.jobs_table.update()
-                      .where(db.jobs_table.c.job_id == job_id)
+    db.ENGINE.execute(db.JOBS_TABLE.update()
+                      .where(db.JOBS_TABLE.c.job_id == job_id)
                       .values(**update_dict))
 
 
