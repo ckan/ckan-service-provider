@@ -199,7 +199,7 @@ def add_pending_job(job_id, job_key, job_type, api_key,
         when posting the job result to the result_url
     :type api_key: unicode
 
-    :param data: The input data for the job
+    :param data: The input data for the job (called sent_data elsewhere)
     :type data: Any JSON-serializable type
 
     :param metadata: A dict of arbitrary (key, value) metadata pairs to be
