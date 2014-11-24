@@ -166,22 +166,69 @@ def add_pending_job(job_id, job_key, job_type, api_key,
         conn.close()
 
 
-def mark_job_as_completed(job_id, data=None):
-    """Mark a job as completed successfully.
+def _update_job(job_id, job_dict):
+    """Update the database row for the given job_id with the given job_dict.
 
-    This also deletes the API key (that ckanserviceprovider uses when posting
-    the job result to the result_url) from the jobs table, so that we don't
-    have lots of unneeded API keys lying around in our DB being a security
-    issue.
+    All functions that update rows in the jobs table do it by calling this
+    helper function.
+
+    job_dict is a dict with values corresponding to the database columns,
+    e.g.:
+
+      {"status": "complete", "data": ...}
 
     """
-    status = "complete"
-    finished_timestamp = datetime.datetime.now()
+    if "finished_timestamp" not in job_dict:
+        job_dict["finished_timestamp"] = datetime.datetime.now()
+    assert "api_key" not in job_dict
+    job_dict["api_key"] = None  # Delete any API key from the database row.
     ENGINE.execute(
         JOBS_TABLE.update()
         .where(JOBS_TABLE.c.job_id == job_id)
-        .values(status=status, finished_timestamp=finished_timestamp,
-                api_key=None, data=data))
+        .values(**job_dict))
+
+
+def mark_job_as_completed(job_id, data=None):
+    """Mark a job as completed successfully."""
+    update_dict = {
+        "status": "complete",
+        "data": json.dumps(data),
+    }
+    _update_job(job_id, update_dict)
+
+
+def mark_job_as_missed(job_id):
+    """Mark a job as missed because it was in the queue for too long."""
+    update_dict = {
+        "status": "error",
+        "error": json.dumps("Job delayed too long, service full"),
+    }
+    _update_job(job_id, update_dict)
+
+
+def mark_job_as_errored(job_id, error_object):
+    """Mark a job as failed with an error."""
+    update_dict = {
+        "status": "error",
+        "error": json.dumps(error_object),
+    }
+    _update_job(job_id, update_dict)
+
+
+def mark_job_as_failed_to_post_result(job_id):
+    """Mark a job as 'failed to post result'.
+
+    This happens when a job completes (either successfully or with an error)
+    then trying to post the job result back to the job's callback URL fails.
+
+    FIXME: This overwrites any error from the job itself!
+
+    """
+    update_dict = {
+        "error": json.dumps(
+            "Process completed but unable to post to result_url"),
+    }
+    _update_job(job_id, update_dict)
 
 
 def _init_jobs_table():

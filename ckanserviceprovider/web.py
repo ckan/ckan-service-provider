@@ -172,37 +172,24 @@ class RunNowTrigger(object):
 def job_listener(event):
     '''Listens to completed job'''
     job_id = event.job.args[0]
-    update_dict = {'finished_timestamp': datetime.datetime.now()}
 
     if event.code == events.EVENT_JOB_MISSED:
-        update_dict['status'] = 'error'
-        update_dict['error'] = json.dumps(
-            'Job delayed too long, service full')
+        db.mark_job_as_missed(job_id)
     elif event.exception:
-        update_dict['status'] = 'error'
         if isinstance(event.exception, util.JobError):
-            update_dict['error'] = json.dumps(event.exception.message)
+            error_object = event.exception.message
         else:
-            update_dict['error'] = \
-                json.dumps(traceback.format_tb(event.traceback)
-                           +
-                           [repr(event.exception)])
+            error_object = traceback.format_tb(event.traceback) + [repr(
+                event.exception)]
+        db.mark_job_as_errored(job_id, error_object)
     else:
-        update_dict['status'] = 'complete'
-        update_dict['data'] = json.dumps(event.retval)
+        db.mark_job_as_completed(job_id, event.retval)
 
-    update_dict['api_key'] = None
-
-    job = db.get_job(job_id)
-    api_key = job['api_key']
-    update_job(job_id, update_dict)
+    api_key = db.get_job(job_id)["api_key"]
     result_ok = send_result(job_id, api_key)
 
     if not result_ok:
-        ## TODO this clobbers original error
-        update_dict['error'] = json.dumps(
-            'Process completed but unable to post to result_url')
-        update_job(job_id, update_dict)
+        db.mark_job_as_failed_to_post_result(job_id)
 
     # Optionally notify tests that job_listener() has finished.
     if "_TEST_CALLBACK_URL" in app.config:
