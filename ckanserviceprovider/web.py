@@ -179,8 +179,8 @@ def job_listener(event):
         if isinstance(event.exception, util.JobError):
             error_object = event.exception.message
         else:
-            error_object = traceback.format_tb(event.traceback) + [repr(
-                event.exception)]
+            error_object = "\n".join(traceback.format_tb(event.traceback) +
+                    [repr(event.exception)])
         db.mark_job_as_errored(job_id, error_object)
     else:
         db.mark_job_as_completed(job_id, event.retval)
