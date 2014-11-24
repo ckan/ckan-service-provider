@@ -645,36 +645,26 @@ def run_synchronous_job(job, job_id, job_key, input):
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
 
-    update_dict = {}
     try:
         result = job(job_id, input)
-        update_dict['status'] = 'complete'
 
         if hasattr(result, "__call__"):
-            update_job(job_id, update_dict)
+            db.mark_job_as_completed(job_id)
             return flask.Response(result(), mimetype='application/json')
+        else:
+            db.mark_job_as_completed(job_id, result)
 
-        update_dict['data'] = json.dumps(result)
     except util.JobError, e:
-        update_dict['status'] = 'error'
-        update_dict['error'] = json.dumps(e.message)
+        db.mark_job_as_errored(job_id, e.message)
     except Exception, e:
-        update_dict['status'] = 'error'
-        update_dict['error'] = json.dumps(traceback.format_tb(sys.exc_traceback)[-1]
-                                          +
-                                          repr(e))
-    finally:
-        update_dict['api_key'] = None
-        update_dict['finished_timestamp'] = datetime.datetime.now()
+        db.mark_job_as_errored(
+            job_id, traceback.format_tb(sys.exc_traceback)[-1] + repr(e))
 
-        api_key = db.get_job(job_id)['api_key']
-        update_job(job_id, update_dict)
+    api_key = db.get_job(job_id)['api_key']
     result_ok = send_result(job_id, api_key)
 
     if not result_ok:
-        update_dict['error'] = json.dumps('Process completed but unable to '
-                                          'post to result_url')
-        update_job(job_id, update_dict)
+        db.mark_job_as_failed_to_post_result(job_id)
 
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
@@ -706,12 +696,6 @@ def is_authorized(job=None):
             return True
         return job['job_key'] == job_key
     return False
-
-
-def update_job(job_id, update_dict):
-    db.ENGINE.execute(db.JOBS_TABLE.update()
-                      .where(db.JOBS_TABLE.c.job_id == job_id)
-                      .values(**update_dict))
 
 
 def send_result(job_id, api_key=None):
