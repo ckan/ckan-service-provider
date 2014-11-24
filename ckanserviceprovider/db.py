@@ -267,8 +267,6 @@ def _update_job(job_id, job_dict):
       {"status": "complete", "data": ...}
 
     """
-    if "finished_timestamp" not in job_dict:
-        job_dict["finished_timestamp"] = datetime.datetime.now()
     assert "api_key" not in job_dict
     job_dict["api_key"] = None  # Delete any API key from the database row.
     ENGINE.execute(
@@ -290,6 +288,7 @@ def mark_job_as_completed(job_id, data=None):
     update_dict = {
         "status": "complete",
         "data": json.dumps(data),
+        "finished_timestamp": datetime.datetime.now(),
     }
     _update_job(job_id, update_dict)
 
@@ -304,6 +303,7 @@ def mark_job_as_missed(job_id):
     update_dict = {
         "status": "error",
         "error": json.dumps("Job delayed too long, service full"),
+        "finished_timestamp": datetime.datetime.now(),
     }
     _update_job(job_id, update_dict)
 
@@ -321,6 +321,7 @@ def mark_job_as_errored(job_id, error_object):
     update_dict = {
         "status": "error",
         "error": json.dumps(error_object),
+        "finished_timestamp": datetime.datetime.now(),
     }
     _update_job(job_id, update_dict)
 
