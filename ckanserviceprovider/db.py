@@ -1,4 +1,46 @@
 # -*- coding: utf-8 -*-
+"""A module that encapsulates CKAN Service Provider's model/database.
+
+This module provides a set of public functions that other modules should call
+to interact with the database, rather than using sqlalchemy directly.
+
+TODO: Some more refactoring is still needed to have the model completely
+encapsulated in this module, other modules are still using sqlalchemy directly
+in some places.
+
+The database contains:
+
+1. A jobs table that tracks the statuses of pending and completed jobs
+2. A metdata table that contains (key, value) metadata pairs associated with
+   jobs
+3. A logs table that contains log output from jobs.
+
+This module's public interface includes:
+
+init()
+Initialise the database connection on application or test startup, creating the
+database and tables if necessary.
+
+drop_all()
+Delete all the database tables, for tests.
+
+get_job()
+Get a dictionary representation of a job from the database.
+
+add_pending_job()
+Add a new job with status "pending" to the database.
+Jobs always have status "pending" when they're first added.
+
+mark_job_as_*()
+A set of functions for updating an existing job in the database.
+There are a limited number of ways in which CKAN Service Provider updates jobs.
+For example marking a job as completed successfully, or marking a job as
+failed with an error. These mark_job_as_*() functions define all the ways that
+a job can be updated.
+
+See the functions' own docstrings for details.
+
+"""
 from __future__ import unicode_literals
 import datetime
 import json
@@ -54,10 +96,56 @@ def drop_all():
 
 
 def get_job(job_id):
-    """Get a job from the jobs table.
+    """Return the job with the given job_id as a dict.
 
-    Returns a dictionary representation of the job, or None if there was no
-    job with the given job_id.
+    The dict also includes any metadata or logs associated with the job.
+
+    Returns None instead of a dict if there's no job with the given job_id.
+
+    The keys of a job dict are:
+
+    "job_id": The unique identifier for the job (unicode)
+
+    "job_type": The name of the job function that will be executed for this
+        job (unicode)
+
+    "status": The current status of the job, e.g. "pending", "complete", or
+        "error" (unicode)
+
+    "data": Any output data returned by the job if it has completed
+        successfully. This may be any JSON-serializable type, e.g. None, a
+        string, a dict, etc.
+
+    "error": Any error object returned by the job if it has failed with an
+        error. This may be any JSON-serializable type, e.g. None, a
+        string, a list of strings, etc.
+
+    "requested_timestamp": The time at which the job was requested (string)
+
+    "finished_timestamp": The time at which the job finished (string)
+
+    "sent_data": The input data for the job, provided by the client site.
+        This may be any JSON-serializable type, e.g. None, a string, a dict,
+        etc.
+
+    "result_url": The callback URL that CKAN Service Provider will post the
+        result to when the job finishes (unicode)
+
+    "api_key": The API key that CKAN Service Provider will use when posting
+        the job result to the result_url (unicode or None). A None here doesn't
+        mean that there was no API key: CKAN Service Provider deletes the API
+        key from the database after it has posted the result to the result_url.
+
+    "job_key": The key that users must provide (in the Authorization header of
+        the HTTP request) to be authorized to modify the job (unicode).
+        For example requests to the CKAN Service Provider API need this to get
+        the status or output data of a job or to delete a job.
+        If you login to CKAN Service Provider as an administrator then you can
+        administer any job without providing its job_key.
+
+    "metadata": Any custom metadata associated with the job (dict)
+
+    "logs": Any logs associated with the job (list)
 
     """
     result = ENGINE.execute(
@@ -100,27 +188,28 @@ def add_pending_job(job_id, job_key, job_type, api_key,
         ckanserviceprovider's "jobs" database table
     :type job_id: unicode
 
-    :param job_key: the "key to administer the job" (?)
+    :param job_key: the key required to administer the job via the API
+    :type job_key: unicode
+
+    :param job_type: the name of the job function that will be executed for
+        this job
     :type job_key: unicode
 
     :param api_key: the client site API key that ckanserviceprovider will use
         when posting the job result to the result_url
     :type api_key: unicode
 
-    :param data: I'm guessing this is the input data for the job, sent by
-        the client to ckanserviceprovider when submitting the job request
-    :type data: JSON-encodable dict
+    :param data: The input data for the job
+    :type data: Any JSON-serializable type
 
     :param metadata: A dict of arbitrary (key, value) metadata pairs to be
         stored along with the job. The keys should be strings, the values can
         be strings or any JSON-encodable type.
-        Not sure what this metadata is for?
     :type metadata: dict
 
     :param result_url: the callback URL that ckanserviceprovider will post the
         job result to when the job has finished
     :type result_url: unicode
-
 
     """
     if not data:
@@ -172,8 +261,8 @@ def _update_job(job_id, job_dict):
     All functions that update rows in the jobs table do it by calling this
     helper function.
 
-    job_dict is a dict with values corresponding to the database columns,
-    e.g.:
+    job_dict is a dict with values corresponding to the database columns that
+    should be updated, e.g.:
 
       {"status": "complete", "data": ...}
 
@@ -189,7 +278,15 @@ def _update_job(job_id, job_dict):
 
 
 def mark_job_as_completed(job_id, data=None):
-    """Mark a job as completed successfully."""
+    """Mark a job as completed successfully.
+
+    :param job_id: the job_id of the job to be updated
+    :type job_id: unicode
+
+    :param data: the output data returned by the job
+    :type data: any JSON-serializable type (including None)
+
+    """
     update_dict = {
         "status": "complete",
         "data": json.dumps(data),
@@ -198,7 +295,12 @@ def mark_job_as_completed(job_id, data=None):
 
 
 def mark_job_as_missed(job_id):
-    """Mark a job as missed because it was in the queue for too long."""
+    """Mark a job as missed because it was in the queue for too long.
+
+    :param job_id: the job_id of the job to be updated
+    :type job_id: unicode
+
+    """
     update_dict = {
         "status": "error",
         "error": json.dumps("Job delayed too long, service full"),
@@ -207,7 +309,15 @@ def mark_job_as_missed(job_id):
 
 
 def mark_job_as_errored(job_id, error_object):
-    """Mark a job as failed with an error."""
+    """Mark a job as failed with an error.
+
+    :param job_id: the job_id of the job to be updated
+    :type job_id: unicode
+
+    :param error_object: the error returned by the job
+    :type error_object: any JSON-serializable type (including None)
+
+    """
     update_dict = {
         "status": "error",
         "error": json.dumps(error_object),
@@ -222,6 +332,9 @@ def mark_job_as_failed_to_post_result(job_id):
     then trying to post the job result back to the job's callback URL fails.
 
     FIXME: This overwrites any error from the job itself!
+
+    :param job_id: the job_id of the job to be updated
+    :type job_id: unicode
 
     """
     update_dict = {
