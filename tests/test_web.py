@@ -466,7 +466,7 @@ class TestWeb(object):
                                    u'sent_data': {},
                                    u'job_id': u'missing_time',
                                    u'job_type': u'example',
-                                   u'error': u'time not in input',
+                                   u'error': {"message": u'time not in input'},
                                    u'data': None,
                                    u'metadata': {},
                                    u'logs': [],
@@ -517,7 +517,7 @@ class TestWeb(object):
                                    u'metadata': {},
                                    u'logs': [],
                                    u'result_url': RESULT_URL}, job_status_data
-        assert 'TypeError' in error[-1], error
+        assert 'TypeError' in error["message"], error["message"]
 
         # get_job() shouldn't return the API key, either.
         job_ = db.get_job(job_status_data['job_id'])
@@ -642,16 +642,17 @@ class TestWeb(object):
         job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert job_status_data == {u'status': u'complete',
-                                   u'sent_data': {u'time': 0.1},
-                                   u'job_id': u'with_bad_result',
-                                   u'job_type': u'example',
-                                   u'error': u'Process completed but'
-                                             ' unable to post to result_url',
-                                   u'data': u'Slept for 0.1 seconds.',
-                                   u'metadata': {'key': 'value'},
-                                   u'logs': [],
-                                   u'result_url': RESULT_URL}, job_status_data
+        assert job_status_data == {
+            u'status': u'complete',
+            u'sent_data': {u'time': 0.1},
+            u'job_id': u'with_bad_result',
+            u'job_type': u'example',
+            u'error': {"message": 'Process completed but unable to post to '
+                                  'result_url'},
+            u'data': u'Slept for 0.1 seconds.',
+            u'metadata': {'key': 'value'},
+            u'logs': [],
+            u'result_url': RESULT_URL}, job_status_data
 
         job_ = db.get_job(job_status_data['job_id'])
         assert not job_['api_key'], job_
@@ -756,7 +757,7 @@ class TestWeb(object):
              u'sent_data': {u'time': 0.1},
              u'job_id': u'misfire',
              u'job_type': u'example',
-             u'error': u'Job delayed too long, service full',
+             u'error': {"message": u'Job delayed too long, service full'},
              u'data': None,
              u'logs': [],
              u'metadata': {"key": "value",
@@ -867,7 +868,7 @@ class TestWeb(object):
              u'job_id': u'echoknownbad',
              u'job_type': u'echo',
              u'result_url': None,
-             u'error': u'Do not start message with >',
+             u'error': {"message": u'Do not start message with >'},
              u'data': None,
              u'logs': [],
              u'metadata': {}})
@@ -879,7 +880,7 @@ class TestWeb(object):
                              "data": 1}),
             content_type='application/json')
         return_data = json.loads(response.data)
-        assert 'AttributeError' in return_data['error']
+        assert 'AttributeError' in return_data['error']['message']
 
         response = client.post(
             '/job/echobad_url',
@@ -899,7 +900,9 @@ class TestWeb(object):
              u'job_id': u'echobad_url',
              u'job_type': u'echo',
              u'result_url': u'http://bad_url',
-             u'error': u'Process completed but unable to post to result_url',
+             u'error': {
+                 "message": u'Process completed but unable to post to '
+                            'result_url'},
              u'data': u'>moo',
              u'logs': [],
              u'metadata': {}})

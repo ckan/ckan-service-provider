@@ -255,6 +255,50 @@ def add_pending_job(job_id, job_key, job_type, api_key,
         conn.close()
 
 
+class InvalidErrorObjectError(Exception):
+    pass
+
+
+def _validate_error(error):
+    """Validate and return the given error object.
+
+    Ensure that a job's "error" object is always either None or a dict with a
+    "message" key whose value is a string (the dict may also have any other
+    keys that it wants).
+
+    The "error" object can be:
+
+    - None, in which case None is returned
+
+    - A string, in which case a dict like this will be returned:
+      {"message": error_string}
+
+    - A dict with a "message" key whose value is a string, in which case the
+      dict will be returned unchanged
+
+    :param error: the error object to validate
+
+    :raises InvalidErrorObjectError: If the error object doesn't match any of
+        the allowed types
+
+    """
+    if error is None:
+        return None
+    elif isinstance(error, basestring):
+        return {"message": error}
+    else:
+        try:
+            message = error["message"]
+            if isinstance(message, basestring):
+                return error
+            else:
+                raise InvalidErrorObjectError(
+                    "error['message'] must be a string")
+        except (TypeError, KeyError):
+            raise InvalidErrorObjectError(
+                "error must be either a string or a dict with a message key")
+
+
 def _update_job(job_id, job_dict):
     """Update the database row for the given job_id with the given job_dict.
 
@@ -267,8 +311,14 @@ def _update_job(job_id, job_dict):
       {"status": "complete", "data": ...}
 
     """
+    # Delete any API key from the database row.
     assert "api_key" not in job_dict
-    job_dict["api_key"] = None  # Delete any API key from the database row.
+    job_dict["api_key"] = None
+
+    if "error" in job_dict:
+        job_dict["error"] = _validate_error(job_dict["error"])
+        job_dict["error"] = json.dumps(job_dict["error"])
+
     ENGINE.execute(
         JOBS_TABLE.update()
         .where(JOBS_TABLE.c.job_id == job_id)
@@ -320,7 +370,7 @@ def mark_job_as_errored(job_id, error_object):
     """
     update_dict = {
         "status": "error",
-        "error": json.dumps(error_object),
+        "error": error_object,
         "finished_timestamp": datetime.datetime.now(),
     }
     _update_job(job_id, update_dict)
@@ -339,8 +389,8 @@ def mark_job_as_failed_to_post_result(job_id):
 
     """
     update_dict = {
-        "error": json.dumps(
-            "Process completed but unable to post to result_url"),
+        "error":
+            "Process completed but unable to post to result_url",
     }
     _update_job(job_id, update_dict)
 
