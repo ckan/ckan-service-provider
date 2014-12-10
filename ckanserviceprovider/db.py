@@ -352,7 +352,7 @@ def mark_job_as_missed(job_id):
     """
     update_dict = {
         "status": "error",
-        "error": json.dumps("Job delayed too long, service full"),
+        "error": "Job delayed too long, service full",
         "finished_timestamp": datetime.datetime.now(),
     }
     _update_job(job_id, update_dict)
