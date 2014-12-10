@@ -262,11 +262,11 @@ class InvalidErrorObjectError(Exception):
 def _validate_error(error):
     """Validate and return the given error object.
 
-    Ensure that a job's "error" object is always either None or a dict with a
+    Based on the given error object, return either None or a dict with a
     "message" key whose value is a string (the dict may also have any other
     keys that it wants).
 
-    The "error" object can be:
+    The given "error" object can be:
 
     - None, in which case None is returned
 
