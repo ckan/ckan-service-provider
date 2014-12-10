@@ -116,9 +116,10 @@ def get_job(job_id):
         successfully. This may be any JSON-serializable type, e.g. None, a
         string, a dict, etc.
 
-    "error": Any error object returned by the job if it has failed with an
-        error. This may be any JSON-serializable type, e.g. None, a
-        string, a list of strings, etc.
+    "error": If the job failed with an error this will be a dict with a
+        "message" key whose value is a string error message. The dict may also
+        have other keys specific to the particular type of error. If the job
+        did not fail with an error then "error" will be None.
 
     "requested_timestamp": The time at which the job was requested (string)
 
@@ -365,7 +366,8 @@ def mark_job_as_errored(job_id, error_object):
     :type job_id: unicode
 
     :param error_object: the error returned by the job
-    :type error_object: any JSON-serializable type (including None)
+    :type error_object: either a string or a dict with a "message" key whose
+        value is a string
 
     """
     update_dict = {
