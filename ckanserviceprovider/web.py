@@ -177,7 +177,7 @@ def job_listener(event):
         db.mark_job_as_missed(job_id)
     elif event.exception:
         if isinstance(event.exception, util.JobError):
-            error_object = event.exception.message
+            error_object = event.exception.as_dict()
         else:
             error_object = "\n".join(traceback.format_tb(event.traceback) +
                     [repr(event.exception)])
@@ -655,7 +655,7 @@ def run_synchronous_job(job, job_id, job_key, input):
             db.mark_job_as_completed(job_id, result)
 
     except util.JobError, e:
-        db.mark_job_as_errored(job_id, e.message)
+        db.mark_job_as_errored(job_id, e.as_dict())
     except Exception, e:
         db.mark_job_as_errored(
             job_id, traceback.format_tb(sys.exc_traceback)[-1] + repr(e))

@@ -8,8 +8,26 @@ import db
 
 
 class JobError(Exception):
-    '''Error to be raised by jobs so that message is returned'''
-    pass
+    """The exception type that jobs raise to signal failure."""
+
+    def __init__(self, message):
+        """Initialize a JobError with the given error message string.
+
+        The error message string that you give here will be returned to the
+        client site in the job dict's "error" key.
+
+        """
+        self.message = message
+
+    def as_dict(self):
+        """Return a dictionary representation of this JobError object.
+
+        Returns a dictionary with a "message" key whose value is a string error
+        message - suitable for use as the "error" key in a ckanserviceprovider
+        job dict.
+
+        """
+        return {"message": self.message}
 
 
 class StoringHandler(logging.Handler):
