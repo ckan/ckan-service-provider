@@ -41,13 +41,20 @@ class StoringHandler(logging.Handler):
     def emit(self, record):
         conn = db.ENGINE.connect()
         try:
+            # Turn strings into unicode to stop SQLAlchemy
+            # "Unicode type received non-unicode bind param value" warnings.
+            message = unicode(record.getMessage())
+            level = unicode(record.levelname)
+            module = unicode(record.module)
+            funcName = unicode(record.funcName)
+
             conn.execute(db.LOGS_TABLE.insert().values(
                 job_id=self.task_id,
                 timestamp=datetime.datetime.now(),
-                message=record.getMessage(),
-                level=record.levelname,
-                module=record.module,
-                funcName=record.funcName,
+                message=message,
+                level=level,
+                module=module,
+                funcName=funcName,
                 lineno=record.lineno))
         finally:
             conn.close()

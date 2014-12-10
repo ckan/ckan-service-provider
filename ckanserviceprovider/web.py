@@ -369,6 +369,10 @@ def job_list():
 
     ors = []
     for key, value in args.iteritems():
+        # Turn strings into unicode to stop SQLAlchemy
+        # "Unicode type received non-unicode bind param value" warnings.
+        key = unicode(key)
+
         ors.append(sql.and_(db.METADATA_TABLE.c.key == key,
                    db.METADATA_TABLE.c.value == value))
 
