@@ -63,6 +63,7 @@ def _make_request_callback_function(event):
     """
     def request_callback(request, uri, headers):
         event.set()
+        return (200, headers, "")
     return request_callback
 
 
@@ -97,6 +98,27 @@ def mock_result_url(result_url):
     request_callback = _make_request_callback_function(event)
     httpretty.register_uri(
         httpretty.POST, result_url, body=request_callback)
+    return event
+
+
+def _mock_test_callback_url(client):
+    """Mock the tests callback URL.
+
+    _TEST_CALLBACK_URL is a special URL that CKAN service provider calls after
+    it has completely finished with an asynchronous job. Waiting for this URL
+    to be called enables tests to assert things that don't happen until after
+    the normal client callback URL has been called, without any race conditions
+    in the tests.
+
+    Returns a threading.Event object that you can use to wait for the mock URL
+    to be called by doing: event.wait().
+
+    """
+    test_callback_url = client.application.config.get("_TEST_CALLBACK_URL")
+    event = threading.Event()
+    request_callback = _make_request_callback_function(event)
+    httpretty.register_uri(
+        httpretty.GET, test_callback_url, body=request_callback)
     return event
 
 
@@ -249,11 +271,40 @@ class TestWeb(object):
         assert 'job_id' in return_data
 
     @httpretty.activate
+    def test_callback_url_is_called_with_api_key(self):
+        """It should use the API key when posting to the callback URL."""
+        API_KEY = "42"
+        client = test_client()
+        event = threading.Event()
+
+        def callback(request, uri, headers):
+            assert request.headers.get("Authorization") == API_KEY, (
+                "ckanserviceprovider should put the API key in the "
+                "Authorization header when calling the callback URL")
+            event.set()
+            return (200, headers, "")
+        httpretty.register_uri(httpretty.POST, RESULT_URL, body=callback)
+
+        response = client.post(
+            '/job',
+            data=json.dumps(
+                {"job_type": "example",
+                 "api_key": API_KEY,
+                 "data": {"time": 0.1},
+                 "result_url": RESULT_URL}),
+            content_type='application/json')
+
+        timeout = 10.0
+        assert event.wait(timeout), (
+            "result_url was not called within {timeout} seconds".format(
+                timeout=timeout))
+
+    @httpretty.activate
     def test_get_job_does_not_return_api_key(self):
         '''The dict that get_job() returns should not contain the API key.'''
         client = test_client()
-
-        event = mock_result_url(RESULT_URL)
+        mock_result_url(RESULT_URL)
+        event = _mock_test_callback_url(client)
 
         response = client.post(
             '/job',
@@ -267,8 +318,8 @@ class TestWeb(object):
 
         timeout = 10.0
         assert event.wait(timeout), (
-            "result_url was not called within {timeout} seconds".format(
-                timeout=timeout))
+            "_TEST_CALLBACK_URL was not called within {timeout} "
+            "seconds".format(timeout=timeout))
 
         job_ = db.get_job(return_data['job_id'])
         assert not job_['api_key'], job_
@@ -439,7 +490,9 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        event = mock_result_url(RESULT_URL)
+        mock_result_url(RESULT_URL)
+        event = _mock_test_callback_url(client)
+
         response = client.post(
             '/job/missing_time',
             data=json.dumps({
@@ -453,8 +506,8 @@ class TestWeb(object):
 
         timeout = 10.0
         assert event.wait(timeout), (
-            "result_url was not called within {timeout} seconds".format(
-                timeout=timeout))
+            "_TEST_CALLBACK_URL was not called within {timeout} "
+            "seconds".format(timeout=timeout))
 
         response = client.get('/job/missing_time')
 
@@ -485,7 +538,9 @@ class TestWeb(object):
 
         '''
         client = test_client()
-        event = mock_result_url(RESULT_URL)
+        mock_result_url(RESULT_URL)
+        event = _mock_test_callback_url(client)
+
         response = client.post(
             '/job/exception',
             data=json.dumps({
@@ -499,8 +554,8 @@ class TestWeb(object):
 
         timeout = 10.0
         assert event.wait(timeout), (
-            "result_url was not called within {timeout} seconds".format(
-                timeout=timeout))
+            "_TEST_CALLBACK_URL was not called within {timeout} "
+            "seconds".format(timeout=timeout))
 
         response = client.get('/job/exception')
 
@@ -612,15 +667,9 @@ class TestWeb(object):
 
         """
         client = test_client()
-        test_callback_url = client.application.config.get("_TEST_CALLBACK_URL")
-        event = threading.Event()
-
-        def test_callback_was_called(request, uri, headers):
-            event.set()
+        event = _mock_test_callback_url(client)
 
         httpretty.register_uri(httpretty.POST, RESULT_URL, status=404)
-        httpretty.register_uri(
-            httpretty.GET, test_callback_url, body=test_callback_was_called)
 
         response = client.post(
             '/job/with_bad_result',
@@ -634,8 +683,8 @@ class TestWeb(object):
 
         timeout = 10.0
         assert event.wait(timeout), (
-            "result_url was not called within {timeout} seconds".format(
-                timeout=timeout))
+            "_TEST_CALLBACK_URL was not called within {timeout} "
+            "seconds".format(timeout=timeout))
 
         login(client)
         response = client.get('/job/with_bad_result')

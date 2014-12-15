@@ -710,8 +710,15 @@ def send_result(job_id, api_key=None):
     '''
     job_dict = db.get_job(job_id)
     result_url = job_dict.get('result_url')
+
     if not result_url:
+
+        # A job with an API key (for using when posting to the callback URL)
+        # but no callback URL is weird, but it can happen.
+        db.delete_api_key(job_id)
+
         return True
+
     api_key_from_job = job_dict.pop('api_key', None)
     if not api_key:
         api_key = api_key_from_job
@@ -728,6 +735,9 @@ def send_result(job_id, api_key=None):
             result_url,
             data=json.dumps(job_dict, cls=DatetimeJsonEncoder),
             headers=headers)
+
+        db.delete_api_key(job_id)
+
     except requests.ConnectionError:
         return False
 

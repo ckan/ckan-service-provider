@@ -343,10 +343,6 @@ def _update_job(job_id, job_dict):
     if job_id:
         job_id = unicode(job_id)
 
-    # Delete any API key from the database row.
-    assert "api_key" not in job_dict
-    job_dict["api_key"] = None
-
     if "error" in job_dict:
         job_dict["error"] = _validate_error(job_dict["error"])
         job_dict["error"] = json.dumps(job_dict["error"])
@@ -434,6 +430,17 @@ def mark_job_as_failed_to_post_result(job_id):
             "Process completed but unable to post to result_url",
     }
     _update_job(job_id, update_dict)
+
+
+def delete_api_key(job_id):
+    """Delete the given job's API key from the database.
+
+    The API key is used when posting the job's result to the client's callback
+    URL. This function should be called to delete the API key after the result
+    has been posted - the API key is no longer needed.
+
+    """
+    _update_job(job_id, {"api_key": None})
 
 
 def _init_jobs_table():
