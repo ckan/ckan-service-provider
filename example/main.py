@@ -5,7 +5,7 @@ import ckanserviceprovider.web as web
 import jobs
 
 # check whether jobs have been imported properly
-assert(jobs.echo)
+assert(jobs.example_echo)
 
 
 def serve():
@@ -13,8 +13,13 @@ def serve():
     web.app.run(web.app.config.get('HOST'), web.app.config.get('PORT'))
 
 
-def serve_test():
-    web.configure()
+def test_app():
+    """Return a Flask test client for the example CKAN Service Provider app.
+
+    You should call web.init() once before calling this, then you can call
+    this function as many times as you want to get test apps.
+
+    """
     return web.app.test_client()
 
 
