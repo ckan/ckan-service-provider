@@ -207,9 +207,7 @@ def index():
     :type help: string
     '''
     return flask.jsonify(
-        help="""
-        Get help at:
-        http://ckan-service-provider.readthedocs.org/."""
+        help="Get help at http://ckan-service-provider.readthedocs.org/"
     )
 
 
