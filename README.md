@@ -28,7 +28,7 @@ pip install -r requirements-dev.txt
 
 To get started making a web service with ckanserviceprovider have a look at
 [/example](example). You can run the example server with
-`python example/main.py example/settings_local.py`.
+`python example/main.py example/example_settings.py`.
 
 For a real-world example have a look at [DataPusher][].
 

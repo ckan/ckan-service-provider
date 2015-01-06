@@ -9,7 +9,7 @@ assert(jobs.echo)
 
 
 def serve():
-    web.configure()
+    web.init()
     web.app.run(web.app.config.get('HOST'), web.app.config.get('PORT'))
 
 
