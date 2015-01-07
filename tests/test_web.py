@@ -11,7 +11,6 @@ import httpretty
 from nose.tools import assert_equal
 
 import ckanserviceprovider.web as web
-import ckanserviceprovider.job as job
 import ckanserviceprovider.util as util
 import ckanserviceprovider.db as db
 
