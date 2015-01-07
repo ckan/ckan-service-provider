@@ -1,46 +1,19 @@
 """Functional tests for the example CKAN Service Provider app."""
-import json
 import os
+import json
 import threading
 
 import httpretty
 
 import ckanserviceprovider.db as db
-import ckanserviceprovider.web as web
 
 import example.main
 
 
-# TODO: Make this a shared helper function.
-def _configure():
-    """Configure the Flask app.
-
-    This has to be called just once per test run (not e.g. once for each test
-    method).
-
-    """
-    os.environ['JOB_CONFIG'] = os.path.join(
-        os.path.dirname(__file__), '../example/example_settings.py')
-    web.init()
-_configure()
-
-
-# TODO: Make this a shared helper function.
-def _reset_db():
-    """Reset the database and scheduler.
-
-    Should be called after each test.
-
-    """
-    web.scheduler.shutdown(wait=True)
-    db.drop_all()
-    db.init(web.app.config.get('SQLALCHEMY_DATABASE_URI'))
-    web.init_scheduler(web.app.config.get('SQLALCHEMY_DATABASE_URI'))
-
-
 def _test_app():
     """Return a test client for the example web app."""
-    return example.main.test_app()
+    return example.main.test_app(os.path.abspath(
+        'example/example_settings.py'))
 
 
 class TestExample(object):
@@ -49,7 +22,7 @@ class TestExample(object):
 
     def teardown(self):
         """Reset the db after each test method."""
-        _reset_db()
+        db.drop_all()
 
     def test_root(self):
         """Getting / should return some help text."""

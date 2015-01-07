@@ -2,28 +2,31 @@ import os
 
 import ckanserviceprovider.web as web
 
-import jobs
-
-# check whether jobs have been imported properly
-assert(jobs.example_echo)
+import example.jobs as jobs
 
 
-def serve():
-    web.init()
-    web.app.run(web.app.config.get('HOST'), web.app.config.get('PORT'))
+def _create_app(config_file_name):
+    """Return a CKAN Service Provider app with the example jobs registered."""
+    os.environ['JOB_CONFIG'] = config_file_name
+    app = web.CKANServiceProvider(__name__)
+    app.register_synchronous_jobs(jobs.example_echo)
+    app.register_asynchronous_jobs(
+        jobs.example_async_echo, jobs.example_async_ping)
+    return app
 
 
-def test_app():
-    """Return a Flask test client for the example CKAN Service Provider app.
+def serve(config_file_name):
+    """Run the example app in a local development web server."""
+    _create_app(config_file_name).run()
 
-    You should call web.init() once before calling this, then you can call
-    this function as many times as you want to get test apps.
 
-    """
-    return web.app.test_client()
+def test_app(config_file_name):
+    """Return a Flask test client for the example app."""
+    return _create_app(config_file_name).test_client()
 
 
 def main():
+    """Parse the given command line args and run the app in a dev server."""
     import argparse
 
     argparser = argparse.ArgumentParser(
@@ -35,8 +38,8 @@ def main():
                            help='configuration file')
     args = argparser.parse_args()
 
-    os.environ['JOB_CONFIG'] = os.path.abspath(args.config.name)
-    serve()
+    serve(os.path.abspath(args.config.name))
+
 
 if __name__ == '__main__':
     main()

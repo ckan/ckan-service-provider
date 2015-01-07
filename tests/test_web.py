@@ -5,6 +5,8 @@ import logging
 import uuid
 import threading
 
+import flask
+
 import httpretty
 from nose.tools import assert_equal
 
@@ -19,33 +21,62 @@ import ckanserviceprovider.db as db
 RESULT_URL = "http://demo.ckan.org/ckanserviceprovider/result_url"
 
 
-def configure():
-    """Configure the Flask app.
+def echo(task_id, input_):
+    if input_['data'].startswith('>'):
+        raise util.JobError('Do not start message with >')
+    if input_['data'].startswith('#'):
+        raise Exception('Something went totally wrong')
+    return '>' + input_['data']
 
-    This has to be called just once per test run (not e.g. once for each test).
 
-    """
+def echo_raw(task_id, input_):
+    if input_['data'].startswith('>'):
+        raise util.JobError('Do not start message with >')
+
+    def raw():
+        for x in sorted(input_['data']):
+            yield x
+
+    return raw
+
+
+def example(task_id, input_):
+    if 'time' not in input_['data']:
+        raise util.JobError('time not in input')
+
+    time.sleep(input_['data']['time'])
+    return 'Slept for ' + str(input_['data']['time']) + ' seconds.'
+
+
+def failing(task_id, input_):
+    time.sleep(0.1)
+    raise util.JobError('failed')
+
+
+def log(task_id, input_):
+    handler = util.StoringHandler(task_id, input_)
+    logger = logging.Logger(task_id)
+    logger.addHandler(handler)
+
+    logger.warn('Just a warning')
+
+
+def _test_app():
     os.environ['JOB_CONFIG'] = os.path.join(
         os.path.dirname(__file__), 'settings_test.py')
-    web.init()
-configure()
+    app = web.CKANServiceProvider(__name__)
+    app.register_asynchronous_jobs(failing, example, log)
+    app.register_synchronous_jobs(echo_raw, echo)
+    return app
 
 
-def reset_db():
-    """Reset the database and scheduler.
+def _test_client():
+    """Return a new test client for a new CKANServiceProvider app.
 
-    Should be called after each test.
+    The test job functions defined above will be registered with the app.
 
     """
-    web.scheduler.shutdown(wait=True)
-    db.drop_all()
-    db.init(web.app.config.get('SQLALCHEMY_DATABASE_URI'))
-    web.init_scheduler(web.app.config.get('SQLALCHEMY_DATABASE_URI'))
-
-
-def test_client():
-    """Return a test client for the ckanserviceprovider web app."""
-    return web.app.test_client()
+    return _test_app().test_client()
 
 
 def login(client, username='testadmin', password='testpass'):
@@ -58,7 +89,7 @@ def login(client, username='testadmin', password='testpass'):
 def _make_request_callback_function(event):
     """Return an httpretty request callback function that sets the given event.
 
-    This is a helper function for mock_result_url() below.
+    This is a helper function for _mock_result_url() below.
 
     """
     def request_callback(request, uri, headers):
@@ -67,7 +98,7 @@ def _make_request_callback_function(event):
     return request_callback
 
 
-def mock_result_url(result_url):
+def _mock_result_url(result_url):
     """Mock the given CKAN Service Provider result URL.
 
     Returns a threading.Event object that you can use to wait for the mock URL
@@ -131,59 +162,14 @@ def number_of_jobs(client):
     return len(json.loads(client.get("/job").data)["list"])
 
 
-@job.sync
-def echo(task_id, input_):
-    if input_['data'].startswith('>'):
-        raise util.JobError('Do not start message with >')
-    if input_['data'].startswith('#'):
-        raise Exception('Something went totally wrong')
-    return '>' + input_['data']
-
-
-@job.sync
-def echo_raw(task_id, input_):
-    if input_['data'].startswith('>'):
-        raise util.JobError('Do not start message with >')
-
-    def raw():
-        for x in sorted(input_['data']):
-            yield x
-
-    return raw
-
-
-@job.async
-def example(task_id, input_):
-    if 'time' not in input_['data']:
-        raise util.JobError('time not in input')
-
-    time.sleep(input_['data']['time'])
-    return 'Slept for ' + str(input_['data']['time']) + ' seconds.'
-
-
-@job.async
-def failing(task_id, input_):
-    time.sleep(0.1)
-    raise util.JobError('failed')
-
-
-@job.async
-def log(task_id, input_):
-    handler = util.StoringHandler(task_id, input_)
-    logger = logging.Logger(task_id)
-    logger.addHandler(handler)
-
-    logger.warn('Just a warning')
-
-
 class TestWeb(object):
 
     def teardown(self):
-        reset_db()
+        db.drop_all()
 
     def test_status(self):
         '''/status should return JSON with the app version, job types, etc.'''
-        client = test_client()
+        client = _test_client()
         response = client.get('/status')
         status_data = json.loads(response.data)
         status_data.pop('stats')
@@ -197,14 +183,14 @@ class TestWeb(object):
 
     def test_content_type(self):
         '''Pages should have content_type "application/json".'''
-        client = test_client()
+        client = _test_client()
         for page in ['/job', '/status', '/job/foo']:
             response = client.get(page)
             assert_equal(response.content_type, 'application/json')
 
     def test_bad_post(self):
         '''Invalid posts to /job should receive error messages in JSON.'''
-        client = test_client()
+        client = _test_client()
         response = client.post('/job', data='{"ffsfsafsa":"moo"}')
         assert_equal(
             json.loads(response.data),
@@ -259,7 +245,7 @@ class TestWeb(object):
 
     def test_asynchronous_post_with_good_job(self):
         '''A valid post to /job should get back a JSON object with a job ID.'''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job',
             data=json.dumps({"job_type": "example",
@@ -274,7 +260,7 @@ class TestWeb(object):
     def test_callback_url_is_called_with_api_key(self):
         """It should use the API key when posting to the callback URL."""
         API_KEY = "42"
-        client = test_client()
+        client = _test_client()
         event = threading.Event()
 
         def callback(request, uri, headers):
@@ -302,8 +288,8 @@ class TestWeb(object):
     @httpretty.activate
     def test_get_job_does_not_return_api_key(self):
         '''The dict that get_job() returns should not contain the API key.'''
-        client = test_client()
-        mock_result_url(RESULT_URL)
+        client = _test_client()
+        _mock_result_url(RESULT_URL)
         event = _mock_test_callback_url(client)
 
         response = client.post(
@@ -326,7 +312,7 @@ class TestWeb(object):
 
     def test_post_job_with_custom_id(self):
         '''Posting a job with a custom ID should return the ID in the JSON.'''
-        client = test_client()
+        client = _test_client()
 
         response = client.post(
             '/job/moo',
@@ -348,7 +334,7 @@ class TestWeb(object):
         pending status.
 
         '''
-        client = test_client()
+        client = _test_client()
         client.post(
             '/job/moo',
             data=json.dumps({
@@ -380,8 +366,8 @@ class TestWeb(object):
         Tests the value of the job's metadata after the job has completed.
 
         '''
-        client = test_client()
-        event = mock_result_url(RESULT_URL)
+        client = _test_client()
+        event = _mock_result_url(RESULT_URL)
         client.post(
             '/job/moo',
             data=json.dumps({
@@ -416,7 +402,7 @@ class TestWeb(object):
 
     def test_post_job_with_duplicate_custom_id(self):
         '''Posting a job with a duplicate ID should error.'''
-        client = test_client()
+        client = _test_client()
         client.post(
             '/job/moo',
             data=json.dumps({
@@ -447,7 +433,7 @@ class TestWeb(object):
         """
         # The 'example' job type (defined above) will raise JobError for this
         # data because the data has no "time" key.
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/missing_time',
             data=json.dumps({
@@ -467,7 +453,7 @@ class TestWeb(object):
         "exception" instead of the job ID.
 
         '''
-        client = test_client()
+        client = _test_client()
         # The 'example' job type (defined above) will crash on this invalid
         # time value.
         response = client.post(
@@ -489,8 +475,8 @@ class TestWeb(object):
         the error string from the job function as its value.
 
         '''
-        client = test_client()
-        mock_result_url(RESULT_URL)
+        client = _test_client()
+        _mock_result_url(RESULT_URL)
         event = _mock_test_callback_url(client)
 
         response = client.post(
@@ -537,8 +523,8 @@ class TestWeb(object):
         as opposed to a deliberately raised JobError.
 
         '''
-        client = test_client()
-        mock_result_url(RESULT_URL)
+        client = _test_client()
+        _mock_result_url(RESULT_URL)
         event = _mock_test_callback_url(client)
 
         response = client.post(
@@ -586,7 +572,7 @@ class TestWeb(object):
         ckanserviceprovider should post the job's result to the result_url.
 
         """
-        client = test_client()
+        client = _test_client()
 
         # A thread event that we'll set when the mocked result URL is posted to
         event = threading.Event()
@@ -666,7 +652,7 @@ class TestWeb(object):
         itself!
 
         """
-        client = test_client()
+        client = _test_client()
         event = _mock_test_callback_url(client)
 
         httpretty.register_uri(httpretty.POST, RESULT_URL, status=404)
@@ -712,7 +698,7 @@ class TestWeb(object):
         The response body should be a JSON object containing a not found error.
 
         '''
-        client = test_client()
+        client = _test_client()
         response = client.get('/job/not_there')
         assert response.status_code == 404, response.status
         error = json.loads(response.data)
@@ -720,7 +706,7 @@ class TestWeb(object):
 
     def test_not_authorized_to_view_job(self):
         '''Getting a job that you're not authorized to view should 403.'''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/one_job',
             data=json.dumps({"job_type": "echo",
@@ -741,7 +727,7 @@ class TestWeb(object):
 
     def test_bad_metadata(self):
         '''Posting a job with non-JSON metadata should error.'''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/with_bad_metadata',
             data=json.dumps({"job_type": "example",
@@ -756,7 +742,7 @@ class TestWeb(object):
 
     def test_bad_url(self):
         '''Posting a job with an invalid result_url should error.'''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/with_bad_result',
             data=json.dumps({"job_type": "example",
@@ -773,10 +759,13 @@ class TestWeb(object):
     @httpretty.activate
     def test_misfire(self):
         '''Jobs should error if not completed within the misfire_grace_time.'''
-        client = test_client()
-        event = mock_result_url(RESULT_URL)
+        app = _test_app()
+        client = app.test_client()
+        event = _mock_result_url(RESULT_URL)
 
-        web.scheduler.misfire_grace_time = 0.000001
+        with app.app_context():
+            app._scheduler.misfire_grace_time = 0.000001
+
         response = client.post(
             '/job/misfire',
             data=json.dumps({
@@ -823,7 +812,7 @@ class TestWeb(object):
         text.)
 
         '''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/echoraw',
             data=json.dumps({"metadata": {"key": "value", "moo": "moo"},
@@ -841,7 +830,7 @@ class TestWeb(object):
         result.
 
         '''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/echobasic',
             data=json.dumps({"metadata": {"key": "value",
@@ -965,8 +954,8 @@ class TestWeb(object):
         /job/log API.
 
         '''
-        client = test_client()
-        event = mock_result_url(RESULT_URL)
+        client = _test_client()
+        event = _mock_result_url(RESULT_URL)
         response = client.post(
             '/job/log',
             data=json.dumps({"metadata": {},
@@ -1008,7 +997,7 @@ class TestWeb(object):
         returns 403.
 
         '''
-        client = test_client()
+        client = _test_client()
         response = client.post(
             '/job/to_be_deleted',
             data=json.dumps({"metadata": {"foo": "bar"},
@@ -1030,7 +1019,7 @@ class TestWeb(object):
 
     def test_getting_job_data_for_missing_job(self):
         '''Getting the job data for a job that doesn't exist should 404.'''
-        client = test_client()
+        client = _test_client()
         login(client)
         response = client.get('/job/somefoo/data')
         assert response.status_code == 404, response.status
@@ -1042,7 +1031,7 @@ class TestWeb(object):
         filters.
 
         '''
-        client = test_client()
+        client = _test_client()
 
         db.add_pending_job(
             "job_01", str(uuid.uuid4()), "job_type", "result_url", "api_key",
@@ -1118,7 +1107,7 @@ class TestWeb(object):
         and tests the ?days argument.
 
         '''
-        client = test_client()
+        client = _test_client()
 
         # Add some jobs, all completed and therefore eligible for deletion.
         db.add_pending_job(

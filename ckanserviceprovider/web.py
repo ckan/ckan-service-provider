@@ -11,130 +11,23 @@ import logging.handlers
 
 import flask
 import flask.ext.login as flogin
-#from flask.ext.admin import Admin
 import werkzeug
 import apscheduler.scheduler as apscheduler
 import apscheduler.events as events
 import apscheduler.jobstores.sqlalchemy_store as sqlalchemy_store
-import apscheduler.jobstores.shelve_store as shelve_store
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
 from werkzeug.contrib.fixers import ProxyFix
 
-import db
-import util
-import default_settings
-
-# Some module-global constants. Some of these are accessed directly by other
-# modules. It would be good to factor out as many of these as possible.
-sync_types = {}
-async_types = {}
-job_statuses = ['pending', 'complete', 'error']
-app = flask.Flask(__name__)
-scheduler = None
-_users = None
-_names = None
+import ckanserviceprovider.db as db
+import ckanserviceprovider.util as util
+import ckanserviceprovider.default_settings as default_settings
 
 
-def init():
-    """Initialise and configure the app, database, scheduler, etc.
-
-    This should be called once at application startup or at tests startup
-    (and not e.g. called once for each test case).
-
-    """
-    global _users, _names
-    _configure_app(app)
-    _users, _names = _init_login_manager(app)
-    _configure_logger()
-    init_scheduler(app.config.get('SQLALCHEMY_DATABASE_URI'))
-    db.init(app.config.get('SQLALCHEMY_DATABASE_URI'))
-
-
-def _configure_app(app_):
-    """Configure the Flask WSGI app."""
-    app_.url_map.strict_slashes = False
-    app_.config.from_object(default_settings)
-    app_.config.from_envvar('JOB_CONFIG', silent=True)
-    db_url = app_.config.get('SQLALCHEMY_DATABASE_URI')
-    if not db_url:
-        raise Exception('No db_url in config')
-    app_.wsgi_app = ProxyFix(app_.wsgi_app)
-    return app_
-
-
-def _init_login_manager(app_):
-    """Initialise and configure the login manager."""
-    login_manager = flogin.LoginManager()
-    login_manager.setup_app(app_)
-    login_manager.anonymous_user = Anonymous
-    login_manager.login_view = "login"
-
-    users = {app_.config['USERNAME']: User('Admin', 0)}
-    names = dict((int(v.get_id()), k) for k, v in users.items())
-
-    @login_manager.user_loader
-    def load_user(userid):
-        userid = int(userid)
-        name = names.get(userid)
-        return users.get(name)
-
-    return users, names
-
-
-def _configure_logger_for_production(logger):
-    """Configure the given logger for production deployment.
-
-    Logs to stderr and file, and emails errors to admins.
-
-    """
-    stderr_handler = logging.StreamHandler(sys.stderr)
-    stderr_handler.setLevel(logging.INFO)
-    if 'STDERR' in app.config:
-        logger.addHandler(stderr_handler)
-
-    file_handler = logging.handlers.RotatingFileHandler(
-        app.config.get('LOG_FILE'), maxBytes=67108864, backupCount=5)
-    file_handler.setLevel(logging.INFO)
-    if 'LOG_FILE' in app.config:
-        logger.addHandler(file_handler)
-
-    mail_handler = logging.handlers.SMTPHandler(
-        '127.0.0.1',
-        app.config.get('FROM_EMAIL'),
-        app.config.get('ADMINS', []),
-        'CKAN Service Error')
-    mail_handler.setLevel(logging.ERROR)
-    if 'FROM_EMAIL' in app.config:
-        logger.addHandler(mail_handler)
-
-
-def _configure_logger_for_debugging(logger):
-    """Configure the given logger for debug mode."""
-    logger.addHandler(app.logger.handlers[0])
-
-
-def _configure_logger():
-    """Configure the logging module."""
-    if not app.debug:
-        _configure_logger_for_production(logging.getLogger())
-    elif not app.testing:
-        _configure_logger_for_debugging(logging.getLogger())
-
-
-def init_scheduler(db_uri):
-    """Initialise and configure the scheduler."""
-    global scheduler
-    scheduler = apscheduler.Scheduler()
-    scheduler.misfire_grace_time = 3600
-    scheduler.add_jobstore(
-        sqlalchemy_store.SQLAlchemyJobStore(url=db_uri), 'default')
-    scheduler.add_listener(
-        job_listener,
-        events.EVENT_JOB_EXECUTED | events.EVENT_JOB_MISSED
-        | events.EVENT_JOB_ERROR)
-    return scheduler
+# A global variable that's set to a test URL during testing.
+# Only used for tests.
+_TEST_CALLBACK_URL = None
 
 
 class User(flogin.UserMixin):
@@ -152,8 +45,7 @@ class Anonymous(flogin.AnonymousUserMixin):
 
 
 class RunNowTrigger(object):
-    '''Custom apscheduler trigger to run job once and only
-    once'''
+    '''Custom apscheduler trigger to run job once and only once.'''
     def __init__(self):
         self.run = False
 
@@ -185,20 +77,25 @@ def job_listener(event):
     else:
         db.mark_job_as_completed(job_id, event.retval)
 
-    api_key = db.get_job(job_id)["api_key"]
+    job_dict = db.get_job(job_id)
+    api_key = job_dict["api_key"]
     result_ok = send_result(job_id, api_key)
 
     if not result_ok:
         db.mark_job_as_failed_to_post_result(job_id)
 
     # Optionally notify tests that job_listener() has finished.
-    if "_TEST_CALLBACK_URL" in app.config:
-        requests.get(app.config["_TEST_CALLBACK_URL"])
+    if _TEST_CALLBACK_URL:
+        requests.get(_TEST_CALLBACK_URL)
 
 
 headers = {str('Content-Type'): str('application/json')}
 
-@app.route("/", methods=['GET'])
+CKANSERVICEPROVIDER_BLUEPRINT = flask.Blueprint(
+    "ckanserviceprovider", __name__)
+
+
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/", methods=['GET'])
 def index():
     '''Show link to documentation.
 
@@ -211,7 +108,7 @@ def index():
     )
 
 
-@app.route("/status", methods=['GET'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/status", methods=['GET'])
 def status():
     '''Show version, available job types and name of service.
 
@@ -227,19 +124,19 @@ def status():
     :param stats: Shows stats for jobs in queue
     :type stats: dictionary
     '''
-    job_types = async_types.keys() + sync_types.keys()
+    job_types = flask.current_app.job_types
 
     counts = {}
-    for job_status in job_statuses:
-        counts[job_status] = db.ENGINE.execute(
+    for job_status_ in flask.current_app.JOB_STATUSES:
+        counts[job_status_] = db.ENGINE.execute(
             db.JOBS_TABLE.count()
-            .where(db.JOBS_TABLE.c.status == job_status)
+            .where(db.JOBS_TABLE.c.status == job_status_)
         ).first()[0]
 
     return flask.jsonify(
         version=0.1,
         job_types=job_types,
-        name=app.config.get('NAME', 'example'),
+        name=flask.current_app.config.get('NAME', 'example'),
         stats=counts
     )
 
@@ -248,11 +145,11 @@ def check_auth(username, password):
     '''This function is called to check if a username /
     password combination is valid.
     '''
-    return (username == app.config['USERNAME'] and
-            password == app.config['PASSWORD'])
+    return (username == flask.current_app.config['USERNAME'] and
+            password == flask.current_app.config['PASSWORD'])
 
 
-@app.route('/login', methods=['POST', 'GET'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route('/login', methods=['POST', 'GET'])
 def login():
     '''Log in as administrator
 
@@ -280,10 +177,11 @@ def login():
         error = 'You have to login with proper credentials'
         if username and password:
             if check_auth(username, password):
-                user = _users.get(username)
+                user = flask.current_app.users.get(username)
                 if user:
                     if flogin.login_user(user):
-                        return flask.redirect(next or flask.url_for("user"))
+                        return flask.redirect(next or flask.url_for(
+                            "ckanserviceprovider.user"))
                     error = 'Could not log in user.'
                 else:
                     error = 'User not found.'
@@ -295,10 +193,10 @@ def login():
             'Could not verify your access level for that URL.\n {}'.format(error),
             401,
             {str('WWW-Authenticate'): str('Basic realm="Login Required"')})
-    return flask.redirect(next or flask.url_for("user"))
+    return flask.redirect(next or flask.url_for("ckanserviceprovider.user"))
 
 
-@app.route('/user', methods=['GET'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route('/user', methods=['GET'])
 def user():
     '''Show information about the current user
 
@@ -322,16 +220,16 @@ def user():
     })
 
 
-@app.route('/logout')
+@CKANSERVICEPROVIDER_BLUEPRINT.route('/logout')
 def logout():
     """ Log out the active user
     """
     flogin.logout_user()
     next = flask.request.args.get('next')
-    return flask.redirect(next or flask.url_for("user"))
+    return flask.redirect(next or flask.url_for("ckanserviceprovider.user"))
 
 
-@app.route("/job", methods=['GET'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job", methods=['GET'])
 def job_list():
     '''List all jobs.
 
@@ -383,7 +281,8 @@ def job_list():
     result = db.ENGINE.execute(select)
     listing = []
     for (job_id,) in result:
-        listing.append(flask.url_for('job_status', job_id=job_id))
+        listing.append(
+            flask.url_for('ckanserviceprovider.job_status', job_id=job_id))
 
     return flask.jsonify(list=listing)
 
@@ -397,7 +296,7 @@ class DatetimeJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-@app.route("/job/<job_id>", methods=['GET'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job/<job_id>", methods=['GET'])
 def job_status(job_id, show_job_key=False, ignore_auth=False):
     '''Show a specific job.
 
@@ -440,7 +339,7 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
                           mimetype='application/json')
 
 
-@app.route("/job/<job_id>", methods=['DELETE'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job/<job_id>", methods=['DELETE'])
 def job_delete(job_id):
     '''Deletes the job together with its logs and metadata.
 
@@ -471,7 +370,7 @@ def job_delete(job_id):
         conn.close()
 
 
-@app.route("/job", methods=['DELETE'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job", methods=['DELETE'])
 def clear_jobs():
     '''Clear old jobs
 
@@ -491,7 +390,7 @@ def clear_jobs():
 
 def _clear_jobs(days=None):
     if days is None:
-        days = app.config.get('KEEP_JOBS_AGE')
+        days = flask.current_app.config.get('KEEP_JOBS_AGE')
     else:
         try:
             days = int(days)
@@ -512,7 +411,7 @@ def _clear_jobs(days=None):
         conn.close()
 
 
-@app.route("/job/<job_id>/data", methods=['GET'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job/<job_id>/data", methods=['GET'])
 def job_data(job_id):
     '''Get the raw data that the job returned. The mimetype
     will be the value provided in the metdata for the key ``mimetype``.
@@ -537,8 +436,8 @@ def job_data(job_id):
     return flask.Response(job_dict['data'], mimetype=content_type)
 
 
-@app.route("/job/<job_id>", methods=['POST'])
-@app.route("/job", methods=['POST'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job/<job_id>", methods=['POST'])
+@CKANSERVICEPROVIDER_BLUEPRINT.route("/job", methods=['POST'])
 def job(job_id=None):
     '''Submit a job. If no id is provided, a random id will be generated.
 
@@ -614,7 +513,7 @@ def job(job_id=None):
     if not job_type:
         return json.dumps({"error": "Please specify a job type"}), 409, headers
 
-    job_types = async_types.keys() + sync_types.keys()
+    job_types = flask.current_app.job_types
 
     if job_type not in job_types:
         error_string = (
@@ -632,11 +531,11 @@ def job(job_id=None):
             409, headers
     ############# END CHECKING ################
 
-    synchronous_job = sync_types.get(job_type)
+    synchronous_job = flask.current_app.get_synchronous_job(job_type)
     if synchronous_job:
         return run_synchronous_job(synchronous_job, job_id, job_key, input)
     else:
-        asynchronous_job = async_types.get(job_type)
+        asynchronous_job = flask.current_app.get_asynchronous_job(job_type)
         return run_asynchronous_job(asynchronous_job, job_id, job_key, input)
 
 
@@ -672,15 +571,14 @@ def run_synchronous_job(job, job_id, job_key, input):
 
 
 def run_asynchronous_job(job, job_id, job_key, input):
-    if not scheduler.running:
-        scheduler.start()
+    flask.current_app.start_scheduler()
     try:
         db.add_pending_job(job_id, job_key, **input)
     except sa.exc.IntegrityError:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
 
-    scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
+    flask.current_app.schedule_job(job, job_id, input)
 
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
@@ -694,7 +592,7 @@ def is_authorized(job=None):
         return True
     if job:
         job_key = flask.request.headers.get('Authorization')
-        if job_key == app.config.get('SECRET_KEY'):
+        if job_key == flask.current_app.config.get('SECRET_KEY'):
             return True
         return job['job_key'] == job_key
     return False
@@ -742,9 +640,196 @@ def send_result(job_id, api_key=None):
     return result.status_code == requests.codes.ok
 
 
+def _configure_app(app):
+    """Configure the given flask.Flask app for CKAN Service Provider."""
+    app.url_map.strict_slashes = False
+    app.config.from_object(default_settings)
+    app.config.from_envvar('JOB_CONFIG', silent=True)
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        raise Exception('No db_url in config')
+    app.wsgi_app = ProxyFix(app.wsgi_app)
+
+
+def _configure_logger_for_production(app, logger):
+    """Configure the given logger for production deployment.
+
+    Logs to stderr and file, and emails errors to admins.
+
+    """
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.INFO)
+    if 'STDERR' in app.config:
+        logger.addHandler(stderr_handler)
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        app.config.get('LOG_FILE'), maxBytes=67108864, backupCount=5)
+    file_handler.setLevel(logging.INFO)
+    if 'LOG_FILE' in app.config:
+        logger.addHandler(file_handler)
+
+    mail_handler = logging.handlers.SMTPHandler(
+        '127.0.0.1',
+        app.config.get('FROM_EMAIL'),
+        app.config.get('ADMINS', []),
+        'CKAN Service Error')
+    mail_handler.setLevel(logging.ERROR)
+    if 'FROM_EMAIL' in app.config:
+        logger.addHandler(mail_handler)
+
+
+def _configure_logger_for_debugging(app, logger):
+    """Configure the given logger for debug mode."""
+    logger.addHandler(app.logger.handlers[0])
+
+
+def _configure_logger(app):
+    """Configure the logging module."""
+    if not app.debug:
+        _configure_logger_for_production(app, logging.getLogger())
+    elif not app.testing:
+        _configure_logger_for_debugging(app, logging.getLogger())
+
+
+def _init_login_manager(app):
+    """Initialise and configure the login manager."""
+    login_manager = flogin.LoginManager()
+    login_manager.setup_app(app)
+    login_manager.anonymous_user = Anonymous
+    login_manager.login_view = "login"
+
+    users = {app.config['USERNAME']: User('Admin', 0)}
+    names = dict((int(v.get_id()), k) for k, v in users.items())
+
+    @login_manager.user_loader
+    def load_user(userid):
+        userid = int(userid)
+        name = names.get(userid)
+        return users.get(name)
+
+    return users
+
+
+def _init_scheduler(db_uri):
+    """Return a new initialised and configured apscheduler Scheduler object."""
+    scheduler = apscheduler.Scheduler()
+    scheduler.misfire_grace_time = 3600
+    scheduler.add_jobstore(
+        sqlalchemy_store.SQLAlchemyJobStore(url=db_uri), 'default')
+    scheduler.add_listener(
+        job_listener,
+        events.EVENT_JOB_EXECUTED | events.EVENT_JOB_MISSED
+        | events.EVENT_JOB_ERROR)
+    return scheduler
+
+
+class CKANServiceProvider(flask.Flask):
+
+    """The CKAN Service Provider WSGI application and central object."""
+
+    def __init__(self, name):
+        """Return a new CKAN Service Provider app object.
+
+        This returns a "blank" CKAN Service Provider app with no job functions
+        registered. You should use the app's methods to register your job
+        functions with it before calling app.run(). For example:
+
+            app = ckanserviceprovider.web.CKANServiceProvider(__name__)
+
+            app.register_synchronous_jobs(my_job_function)
+            app.register_asynchronous_jobs(my_other_job_function)
+
+            app.run()
+
+        """
+        super(CKANServiceProvider, self).__init__(name)
+
+        self._sync_types = {}
+        self._async_types = {}
+        self.JOB_STATUSES = ['pending', 'complete', 'error']
+
+        self.register_blueprint(CKANSERVICEPROVIDER_BLUEPRINT)
+
+        _configure_app(self)
+        _configure_logger(self)
+
+        self._scheduler = _init_scheduler(
+            self.config.get('SQLALCHEMY_DATABASE_URI'))
+
+        db.init(self.config.get('SQLALCHEMY_DATABASE_URI'))
+
+        self.users = _init_login_manager(self)
+
+        if "_TEST_CALLBACK_URL" in self.config:
+            global _TEST_CALLBACK_URL
+            _TEST_CALLBACK_URL = self.config["_TEST_CALLBACK_URL"]
+
+    def register_synchronous_jobs(self, *functions):
+        """Register one or more synchronous job functions.
+
+        The functions will be made available via the CKAN Service Provider API
+        as synchronous job types.
+
+        """
+        for func in functions:
+            self._sync_types[func.__name__] = func
+
+    def register_asynchronous_jobs(self, *functions):
+        """Register one or more asynchronous job functions.
+
+        The functions will be made available via the CKAN Service Provider API
+        as asynchronous job types.
+
+        """
+        for func in functions:
+            self._async_types[func.__name__] = func
+
+    @property
+    def synchronous_job_types(self):
+        """A list of the currently registered synchronous job types."""
+        return self._sync_types.keys()
+
+    @property
+    def asynchronous_job_types(self):
+        """A list of the currently registered asynchronous job types."""
+        return self._async_types.keys()
+
+    @property
+    def job_types(self):
+        """A list of the registered asynchronous and synchronous job types."""
+        return self.asynchronous_job_types + self.synchronous_job_types
+
+    def get_synchronous_job(self, job_type):
+        """Return the Python function for the given synchronous job type."""
+        return self._sync_types.get(job_type)
+
+    def get_asynchronous_job(self, job_type):
+        """Return the Python function for the given asynchronous job type."""
+        return self._async_types.get(job_type)
+
+    def start_scheduler(self):
+        """Start the scheduler if it isn't already running."""
+        if not self._scheduler.running:
+            self._scheduler.start()
+
+    def schedule_job(self, job, job_id, input_data):
+        """Schedule a job to be run asynchronously."""
+        self._scheduler.add_job(
+            RunNowTrigger(), job, [job_id, input_data], None)
+
+    def run(self):
+        """Run the CKANServiceProvider app in a local development server."""
+        super(CKANServiceProvider, self).run(
+            self.config.get('HOST'), self.config.get('PORT'))
+
+
 def main():
-    init()
-    app.run(app.config.get('HOST'), app.config.get('PORT'))
+    """Run a blank CKAN Service Provider app in a development web server.
+
+    The API will be there but there won't be any job functions to run. This is
+    pointless but may be handy for testing.
+
+    """
+    CKANServiceProvider(__name__).run()
 
 
 if __name__ == '__main__':
