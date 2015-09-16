@@ -692,7 +692,7 @@ def is_authorized(job=None):
     if provided. If no job is provided, the user has to be admin
     to be authorized.
     '''
-    if flogin.current_user.is_authenticated():
+    if flogin.current_user.is_authenticated:
         return True
     if job:
         job_key = flask.request.headers.get('Authorization')
