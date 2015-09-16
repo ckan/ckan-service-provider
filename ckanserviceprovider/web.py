@@ -278,7 +278,7 @@ def login():
         username = auth.username
         password = auth.password
 
-    if not flogin.current_user.is_active():
+    if not flogin.current_user.is_active:
         error = 'You have to login with proper credentials'
         if username and password:
             if check_auth(username, password):
@@ -320,7 +320,7 @@ def user():
         'id': user.get_id(),
         'name': user.name,
         'is_active': user.is_active(),
-        'is_anonymous': user.is_anonymous()
+        'is_anonymous': user.is_anonymous
     })
 
 
@@ -731,6 +731,7 @@ def send_result(job_id, api_key=None):
         headers[header] = key
 
     try:
+        print result_url
         result = requests.post(
             result_url,
             data=json.dumps(job_dict, cls=DatetimeJsonEncoder),
