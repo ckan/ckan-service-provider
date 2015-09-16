@@ -278,7 +278,7 @@ def login():
         username = auth.username
         password = auth.password
 
-    if not flogin.current_user.is_active():
+    if not flogin.current_user.is_active:
         error = 'You have to login with proper credentials'
         if username and password:
             if check_auth(username, password):
@@ -320,7 +320,7 @@ def user():
         'id': user.get_id(),
         'name': user.name,
         'is_active': user.is_active(),
-        'is_anonymous': user.is_anonymous()
+        'is_anonymous': user.is_anonymous
     })
 
 
@@ -692,7 +692,7 @@ def is_authorized(job=None):
     if provided. If no job is provided, the user has to be admin
     to be authorized.
     '''
-    if flogin.current_user.is_authenticated():
+    if flogin.current_user.is_authenticated:
         return True
     if job:
         job_key = flask.request.headers.get('Authorization')
