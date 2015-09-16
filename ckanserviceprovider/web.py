@@ -731,7 +731,6 @@ def send_result(job_id, api_key=None):
         headers[header] = key
 
     try:
-        print result_url
         result = requests.post(
             result_url,
             data=json.dumps(job_dict, cls=DatetimeJsonEncoder),
