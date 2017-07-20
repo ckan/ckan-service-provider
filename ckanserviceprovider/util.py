@@ -29,6 +29,10 @@ class JobError(Exception):
         """
         return {"message": self.message}
 
+    def __str__(self):
+        return u'{}'.format(self.message) \
+            .encode('ascii', 'replace')
+
 
 class StoringHandler(logging.Handler):
     '''A handler that stores the logging records
