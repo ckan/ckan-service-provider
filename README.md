@@ -1,10 +1,10 @@
 [![Build Status](https://travis-ci.org/ckan/ckan-service-provider.png?branch=master)](https://travis-ci.org/ckan/ckan-service-provider)
 [![Coverage Status](https://coveralls.io/repos/ckan/ckan-service-provider/badge.png?branch=master)](https://coveralls.io/r/ckan/ckan-service-provider?branch=master)
-[![Latest Version](https://pypip.in/version/ckanserviceprovider/badge.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
-[![Downloads](https://pypip.in/download/ckanserviceprovider/badge.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
-[![Supported Python versions](https://pypip.in/py_versions/ckanserviceprovider/badge.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
-[![Development Status](https://pypip.in/status/ckanserviceprovider/badge.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
-[![License](https://pypip.in/license/ckanserviceprovider/badge.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
+[![Latest Version](https://img.shields.io/pypi/v/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
+[![Downloads](https://img.shields.io/pypi/dm/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
+[![Development Status](https://img.shields.io/pypi/status/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
+[![License](https://img.shields.io/pypi/l/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
 
 [DataPusher]: https://github.com/okfn/datapusher
 [PyPI]: https://pypi.python.org/pypi/ckanserviceprovider
