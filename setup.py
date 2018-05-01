@@ -54,11 +54,11 @@ setup(
     # https://packaging.python.org/en/latest/technical.html#install-requires-vs-requirements-files
     install_requires=[
         'APScheduler>=2.1.2,<3.0.0',
-        'Flask',
-        'SQLAlchemy',
-        'requests',
-        'flask-admin',
-        'flask-login'],
+        'Flask>=0.11.1,<1.0.0',
+        'SQLAlchemy>=1.2.7,<1.3.0',
+        'requests>=2.11.1,<2.12.0',
+        'flask-admin>=1.5.0,<1.6.0',
+        'flask-login>=0.3.0,<0.4.0'],
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
