@@ -10,7 +10,7 @@ import logging
 import logging.handlers
 
 import flask
-import flask.ext.login as flogin
+import flask_login as flogin
 #from flask.ext.admin import Admin
 import werkzeug
 import apscheduler.scheduler as apscheduler
