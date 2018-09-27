@@ -1,6 +1,6 @@
 # Suggested versions
 APScheduler==2.1.2
 requests==2.11.1
-Flask==0.11.1
-Flask-Admin==1.5.0
+Flask==0.12.3
+Flask-Admin==1.5.2
 Flask-Login==0.3.0
