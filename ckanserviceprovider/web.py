@@ -35,7 +35,7 @@ app = flask.Flask(__name__)
 scheduler = None
 _users = None
 _names = None
-
+SSL_VERIFY = None
 
 def init():
     """Initialise and configure the app, database, scheduler, etc.
@@ -61,6 +61,13 @@ def _configure_app(app_):
     if not db_url:
         raise Exception('No db_url in config')
     app_.wsgi_app = ProxyFix(app_.wsgi_app)
+
+    global SSL_VERIFY
+    if app_.config.get('SSL_VERIFY') in ['False', 'FALSE', '0', False, 0]:
+        SSL_VERIFY = False
+    else:
+        SSL_VERIFY = True
+
     return app_
 
 
@@ -734,7 +741,7 @@ def send_result(job_id, api_key=None):
         result = requests.post(
             result_url,
             data=json.dumps(job_dict, cls=DatetimeJsonEncoder),
-            headers=headers)
+            headers=headers, verify=SSL_VERIFY)
 
         db.delete_api_key(job_id)
 
