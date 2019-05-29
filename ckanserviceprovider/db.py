@@ -95,7 +95,7 @@ def drop_all():
         _METADATA.drop_all(ENGINE)
 
 
-def get_job(job_id, limit_logs=None):
+def get_job(job_id, limit=None):
     """Return the job with the given job_id as a dict.
 
     The dict also includes any metadata or logs associated with the job.
@@ -174,7 +174,7 @@ def get_job(job_id, limit_logs=None):
             result_dict[field] = unicode(value)
 
     result_dict['metadata'] = _get_metadata(job_id)
-    result_dict['logs'] = _get_logs(job_id, limit=limit_logs)
+    result_dict['logs'] = _get_logs(job_id, limit=limit)
 
     return result_dict
 

@@ -200,7 +200,7 @@ class TestWeb(object):
         assert len(return_data['logs']) == 3
 
         # Now test with limit
-        response = client.get('/job/12345?limit_logs=2', headers={'Authorization': 'please_replace_me'})
+        response = client.get('/job/12345?limit=2', headers={'Authorization': 'please_replace_me'})
         return_data = json.loads(response.data)
         assert len(return_data['logs']) == 2
 
