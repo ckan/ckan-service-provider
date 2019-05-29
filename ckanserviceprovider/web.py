@@ -437,7 +437,8 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     '''
-    job_dict = db.get_job(job_id)
+    limit_logs = flask.request.args.get('limit_logs')
+    job_dict = db.get_job(job_id, limit_logs=limit_logs)
     if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     if not ignore_auth and not is_authorized(job_dict):
