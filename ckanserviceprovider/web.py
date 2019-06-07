@@ -11,12 +11,10 @@ import logging.handlers
 
 import flask
 import flask_login as flogin
-#from flask.ext.admin import Admin
 import werkzeug
 import apscheduler.scheduler as apscheduler
 import apscheduler.events as events
 import apscheduler.jobstores.sqlalchemy_store as sqlalchemy_store
-import apscheduler.jobstores.shelve_store as shelve_store
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
@@ -594,8 +592,9 @@ def job(job_id=None):
 
     # Idk why but this is needed for some libraries that
     # send malformed content types
+    content_type = flask.request.content_type or ''
     if (not input and
-            'application/json' in flask.request.content_type.lower()):
+            'application/json' in content_type.lower()):
         try:
             input = json.loads(flask.request.data)
         except ValueError:
