@@ -5,7 +5,6 @@ install:
   - pip install -r requirements-dev.txt
   - pip install coveralls
   - pip install .
-  - pip install Werkzeug==0.14.1 #Tests are failing on newer 0.15.X 
 script: nosetests --with-coverage --cover-package=ckanserviceprovider
 after_success:
   - coveralls
