@@ -95,7 +95,7 @@ def drop_all():
         _METADATA.drop_all(ENGINE)
 
 
-def get_job(job_id):
+def get_job(job_id, limit=None):
     """Return the job with the given job_id as a dict.
 
     The dict also includes any metadata or logs associated with the job.
@@ -174,7 +174,7 @@ def get_job(job_id):
             result_dict[field] = unicode(value)
 
     result_dict['metadata'] = _get_metadata(job_id)
-    result_dict['logs'] = _get_logs(job_id)
+    result_dict['logs'] = _get_logs(job_id, limit=limit)
 
     return result_dict
 
@@ -514,14 +514,25 @@ def _get_metadata(job_id):
     return metadata
 
 
-def _get_logs(job_id):
+def _get_logs(job_id, limit=None):
     """Return any logs for the given job_id from the logs table."""
     # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
     # warnings.
     job_id = unicode(job_id)
+    try:
+        int(limit)
+        limit_is_valid = True
+    except (ValueError, TypeError):
+        # None or "one" (or similar)
+        limit_is_valid = False
 
-    results = ENGINE.execute(
-        LOGS_TABLE.select().where(LOGS_TABLE.c.job_id == job_id)).fetchall()
+    if not limit_is_valid:
+        results = ENGINE.execute(
+            LOGS_TABLE.select().where(LOGS_TABLE.c.job_id == job_id)).fetchall()
+    else:
+        results = ENGINE.execute(
+            LOGS_TABLE.select().where(LOGS_TABLE.c.job_id == job_id).\
+                order_by(LOGS_TABLE.c.timestamp.desc()).limit(limit)).fetchall()
 
     results = [dict(result) for result in results]
 
@@ -529,3 +540,35 @@ def _get_logs(job_id):
         result.pop("job_id")
 
     return results
+
+
+def add_logs(job_id, message=None, level=None,
+                    module=None, funcName=None, lineno=None):
+    """for tests only
+
+    """
+    if job_id:
+        job_id = unicode(job_id)
+    if message:
+        message = unicode(message)
+    if level:
+        level = unicode(level)
+    if module:
+        module = unicode(module)
+    if funcName:
+        funcName = unicode(funcName)
+    if lineno:
+        lineno = unicode(lineno)
+    conn = ENGINE.connect()
+    trans = conn.begin()
+
+    conn.execute(LOGS_TABLE.insert().values(
+        job_id=job_id,
+        timestamp=datetime.datetime.now(),
+        message=message,
+        level=level,
+        module=module,
+        funcName=funcName,
+        lineno=lineno))
+    trans.commit()
+    conn.close()

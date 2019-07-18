@@ -181,6 +181,29 @@ class TestWeb(object):
     def teardown(self):
         reset_db()
 
+    def test_get_job_id_with_limit(self):
+        '''Limiting logs works fine'''
+        client = test_client()
+        client.post(
+            '/job/12345',
+            data=json.dumps({"job_type": "example",
+                             "api_key": 42,
+                             "data": {"time": 0.1}}),
+            content_type='application/json')
+        db.add_logs(job_id='12345', message='message1')
+        db.add_logs(job_id='12345', message='message2')
+        db.add_logs(job_id='12345', message='message3')
+
+        # Make sure it works without limit
+        response = client.get('/job/12345', headers={'Authorization': 'please_replace_me'})
+        return_data = json.loads(response.data)
+        assert len(return_data['logs']) == 3
+
+        # Now test with limit
+        response = client.get('/job/12345?limit=2', headers={'Authorization': 'please_replace_me'})
+        return_data = json.loads(response.data)
+        assert len(return_data['logs']) == 2
+
     def test_status(self):
         '''/status should return JSON with the app version, job types, etc.'''
         client = test_client()

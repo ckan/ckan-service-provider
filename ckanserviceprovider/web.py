@@ -408,6 +408,9 @@ class DatetimeJsonEncoder(json.JSONEncoder):
 def job_status(job_id, show_job_key=False, ignore_auth=False):
     '''Show a specific job.
 
+    :param limit: Limit the number of logs
+    :type limit: integer
+
     **Results:**
 
     :rtype: A dictionary with the following keys
@@ -435,7 +438,8 @@ def job_status(job_id, show_job_key=False, ignore_auth=False):
     :statuscode 404: job id not found
     :statuscode 409: an error occurred
     '''
-    job_dict = db.get_job(job_id)
+    limit = flask.request.args.get('limit')
+    job_dict = db.get_job(job_id, limit=limit)
     if not job_dict:
         return json.dumps({'error': 'job_id not found'}), 404, headers
     if not ignore_auth and not is_authorized(job_dict):
