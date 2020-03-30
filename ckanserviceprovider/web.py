@@ -18,7 +18,7 @@ import apscheduler.jobstores.sqlalchemy_store as sqlalchemy_store
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import db
 from . import util
