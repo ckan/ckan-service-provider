@@ -1,12 +1,27 @@
 from setuptools import setup, find_packages  # Always prefer setuptools over distutils
 from codecs import open  # To use a consistent encoding
 from os import path
+import sys
+
 
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the relevant file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+install_requires = [
+    'APScheduler>=2.1.2,<3.0.0',
+    'Flask>=1.1.1',
+    'SQLAlchemy>=1.3.15,<1.4.0',
+    'requests>=2.23.0',
+    'flask-login>=0.5.0,<0.6.0',
+]
+
+if sys.version_info[0] < 3:
+    install_requires.append('Werkzeug>=0.16.1<1.0.0')
+else:
+    install_requires.append('Werkzeug>=1.0.0')
 
 setup(
     name='ckanserviceprovider',
@@ -52,12 +67,7 @@ setup(
     # project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/technical.html#install-requires-vs-requirements-files
-    install_requires=[
-        'APScheduler>=2.1.2,<3.0.0',
-        'Flask>=1.1.1',
-        'SQLAlchemy>=1.3.15,<1.4.0',
-        'requests>=2.23.0',
-        'flask-login>=0.5.0,<0.6.0'],
+    install_requires=install_requires,
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
