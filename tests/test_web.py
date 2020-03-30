@@ -29,6 +29,8 @@ def configure():
     os.environ['JOB_CONFIG'] = os.path.join(
         os.path.dirname(__file__), 'settings_test.py')
     web.init()
+
+
 configure()
 
 
@@ -132,7 +134,7 @@ def number_of_jobs(client):
     return len(json.loads(client.get("/job").data)["list"])
 
 
-@job.sync
+@job.synchronous
 def echo(task_id, input_):
     if input_['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
@@ -141,7 +143,7 @@ def echo(task_id, input_):
     return '>' + input_['data']
 
 
-@job.sync
+@job.synchronous
 def echo_raw(task_id, input_):
     if input_['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
@@ -153,7 +155,7 @@ def echo_raw(task_id, input_):
     return raw
 
 
-@job.async
+@job.asynchronous
 def example(task_id, input_):
     if 'time' not in input_['data']:
         raise util.JobError('time not in input')
@@ -162,13 +164,13 @@ def example(task_id, input_):
     return 'Slept for ' + str(input_['data']['time']) + ' seconds.'
 
 
-@job.async
+@job.asynchronous
 def failing(task_id, input_):
     time.sleep(0.1)
     raise util.JobError('failed')
 
 
-@job.async
+@job.asynchronous
 def log(task_id, input_):
     handler = util.StoringHandler(task_id, input_)
     logger = logging.Logger(task_id)
