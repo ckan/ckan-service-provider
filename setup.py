@@ -19,7 +19,10 @@ install_requires = [
 ]
 
 if sys.version_info[0] < 3:
-    install_requires.append('Werkzeug>=0.16.1,<1.0.0')
+    install_requires.extend([
+        'Werkzeug>=0.16.1,<1.0.0',
+        'Jinja2<3.0.0',
+    ])
 else:
     install_requires.append('Werkzeug>=1.0.0')
 
