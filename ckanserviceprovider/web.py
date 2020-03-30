@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 import uuid
 import datetime
@@ -18,11 +18,11 @@ import apscheduler.jobstores.sqlalchemy_store as sqlalchemy_store
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
-from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-import db
-import util
-import default_settings
+from . import db
+from . import util
+from . import default_settings
 
 # Some module-global constants. Some of these are accessed directly by other
 # modules. It would be good to factor out as many of these as possible.
@@ -77,7 +77,7 @@ def _init_login_manager(app_):
     login_manager.login_view = "login"
 
     users = {app_.config['USERNAME']: User('Admin', 0)}
-    names = dict((int(v.get_id()), k) for k, v in users.items())
+    names = dict((int(v.get_id()), k) for k, v in list(users.items()))
 
     @login_manager.user_loader
     def load_user(userid):
@@ -153,7 +153,7 @@ class User(flogin.UserMixin):
 
 
 class Anonymous(flogin.AnonymousUserMixin):
-    name = u"Anonymous"
+    name = "Anonymous"
 
 
 class RunNowTrigger(object):
@@ -234,7 +234,7 @@ def status():
     :param stats: Shows stats for jobs in queue
     :type stats: dictionary
     '''
-    job_types = async_types.keys() + sync_types.keys()
+    job_types = sorted(list(async_types.keys()) + list(sync_types.keys()))
 
     counts = {}
     for job_status in job_statuses:
@@ -354,7 +354,7 @@ def job_list():
 
     :rtype: A list of job ids
     '''
-    args = dict((key, value) for key, value in flask.request.args.items())
+    args = dict((key, value) for key, value in list(flask.request.args.items()))
     limit = args.pop('_limit', 100)
     offset = args.pop('_offset', 0)
 
@@ -373,10 +373,10 @@ def job_list():
         select = select.where(db.JOBS_TABLE.c.status == status)
 
     ors = []
-    for key, value in args.iteritems():
+    for key, value in args.items():
         # Turn strings into unicode to stop SQLAlchemy
         # "Unicode type received non-unicode bind param value" warnings.
-        key = unicode(key)
+        key = str(key)
 
         ors.append(sql.and_(db.METADATA_TABLE.c.key == key,
                    db.METADATA_TABLE.c.value == value))
@@ -475,7 +475,7 @@ def job_delete(job_id):
                      db.JOBS_TABLE.c.job_id == job_id))
         trans.commit()
         return json.dumps({'success': True}), 200, headers
-    except Exception, e:
+    except Exception as e:
         trans.rollback()
         return json.dumps({'error': str(e)}), 409, headers
     finally:
@@ -626,12 +626,12 @@ def job(job_id=None):
     if not job_type:
         return json.dumps({"error": "Please specify a job type"}), 409, headers
 
-    job_types = async_types.keys() + sync_types.keys()
+    job_types = list(async_types.keys()) + list(sync_types.keys())
 
     if job_type not in job_types:
         error_string = (
             'Job type {} not available. Available job types are {}'
-        ).format(job_type, ', '.join(job_types))
+        ).format(job_type, ', '.join(sorted(job_types)))
         return json.dumps({"error": error_string}), 409, headers
 
     api_key = input.get('api_key')
@@ -655,7 +655,7 @@ def job(job_id=None):
 def run_synchronous_job(job, job_id, job_key, input):
     try:
         db.add_pending_job(job_id, job_key, **input)
-    except sa.exc.IntegrityError, e:
+    except sa.exc.IntegrityError as e:
         error_string = 'job_id {} already exists'.format(job_id)
         return json.dumps({"error": error_string}), 409, headers
 
@@ -668,11 +668,11 @@ def run_synchronous_job(job, job_id, job_key, input):
         else:
             db.mark_job_as_completed(job_id, result)
 
-    except util.JobError, e:
+    except util.JobError as e:
         db.mark_job_as_errored(job_id, e.as_dict())
-    except Exception, e:
+    except Exception as e:
         db.mark_job_as_errored(
-            job_id, traceback.format_tb(sys.exc_traceback)[-1] + repr(e))
+            job_id, traceback.format_tb(sys.exc_info()[2])[-1] + repr(e))
 
     api_key = db.get_job(job_id)['api_key']
     result_ok = send_result(job_id, api_key)

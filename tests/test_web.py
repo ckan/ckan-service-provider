@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import logging
@@ -28,6 +29,8 @@ def configure():
     os.environ['JOB_CONFIG'] = os.path.join(
         os.path.dirname(__file__), 'settings_test.py')
     web.init()
+
+
 configure()
 
 
@@ -131,7 +134,7 @@ def number_of_jobs(client):
     return len(json.loads(client.get("/job").data)["list"])
 
 
-@job.sync
+@job.synchronous
 def echo(task_id, input_):
     if input_['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
@@ -140,7 +143,7 @@ def echo(task_id, input_):
     return '>' + input_['data']
 
 
-@job.sync
+@job.synchronous
 def echo_raw(task_id, input_):
     if input_['data'].startswith('>'):
         raise util.JobError('Do not start message with >')
@@ -152,7 +155,7 @@ def echo_raw(task_id, input_):
     return raw
 
 
-@job.async
+@job.asynchronous
 def example(task_id, input_):
     if 'time' not in input_['data']:
         raise util.JobError('time not in input')
@@ -161,13 +164,13 @@ def example(task_id, input_):
     return 'Slept for ' + str(input_['data']['time']) + ' seconds.'
 
 
-@job.async
+@job.asynchronous
 def failing(task_id, input_):
     time.sleep(0.1)
     raise util.JobError('failed')
 
 
-@job.async
+@job.asynchronous
 def log(task_id, input_):
     handler = util.StoringHandler(task_id, input_)
     logger = logging.Logger(task_id)
@@ -211,11 +214,12 @@ class TestWeb(object):
         status_data = json.loads(response.data)
         status_data.pop('stats')
         assert_equal(status_data, dict(version=0.1,
-                                       job_types=['failing',
-                                                  'example',
-                                                  'log',
-                                                  'echo_raw',
-                                                  'echo'],
+                                       job_types=sorted([
+                                           'failing',
+                                           'example',
+                                           'log',
+                                           'echo_raw',
+                                           'echo']),
                                        name='testing'))
 
     def test_content_type(self):
@@ -259,7 +263,7 @@ class TestWeb(object):
         assert_equal(
             json.loads(response.data),
             {u'error': u'Job type moo not available. Available job types are '
-                       'failing, example, log, echo_raw, echo'})
+                       'echo, echo_raw, example, failing, log'})
 
         response = client.post(
             '/job',
@@ -643,6 +647,8 @@ class TestWeb(object):
                     })
             finally:
                 event.set()
+            return (200, headers, request.body)
+
         httpretty.register_uri(httpretty.POST, RESULT_URL, body=result_url)
 
         response = client.post(
@@ -855,7 +861,11 @@ class TestWeb(object):
                              "api_key": 42,
                              "data": "ping"}),
             content_type='application/json')
-        assert response.data == 'ginp'
+
+        if sys.version_info[0] < 3:
+            assert response.data == 'ginp'
+        else:
+            assert response.data == b'ginp'
 
     def test_synchronous_post(self):
         '''Posting a synchronous job should get a JSON response with result.
@@ -909,7 +919,11 @@ class TestWeb(object):
         headers = {'Authorization': job_key}
         response = client.get('/job/echobasic/data', headers=headers)
         assert response.status_code == 200, response.status
-        assert_equal(response.data, u'>ping')
+
+        if sys.version_info[0] < 3:
+            assert_equal(response.data, u'>ping')
+        else:
+            assert_equal(response.data, b'>ping')
         assert 'text/csv' in response.content_type, response.content_type
 
         response = client.post(

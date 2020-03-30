@@ -41,7 +41,7 @@ a job can be updated.
 See the functions' own docstrings for details.
 
 """
-from __future__ import unicode_literals
+
 import datetime
 import json
 
@@ -152,7 +152,7 @@ def get_job(job_id, limit=None):
     # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
     # warnings.
     if job_id:
-        job_id = unicode(job_id)
+        job_id = str(job_id)
 
     result = ENGINE.execute(
         JOBS_TABLE.select().where(JOBS_TABLE.c.job_id == job_id)).first()
@@ -162,7 +162,7 @@ def get_job(job_id, limit=None):
 
     # Turn the result into a dictionary representation of the job.
     result_dict = {}
-    for field in result.keys():
+    for field in list(result.keys()):
         value = getattr(result, field)
         if value is None:
             result_dict[field] = value
@@ -171,7 +171,7 @@ def get_job(job_id, limit=None):
         elif isinstance(value, datetime.datetime):
             result_dict[field] = value.isoformat()
         else:
-            result_dict[field] = unicode(value)
+            result_dict[field] = str(value)
 
     result_dict['metadata'] = _get_metadata(job_id)
     result_dict['logs'] = _get_logs(job_id, limit=limit)
@@ -225,16 +225,16 @@ def add_pending_job(job_id, job_key, job_type, api_key,
     # Turn strings into unicode to stop SQLAlchemy
     # "Unicode type received non-unicode bind param value" warnings.
     if job_id:
-        job_id = unicode(job_id)
+        job_id = str(job_id)
     if job_type:
-        job_type = unicode(job_type)
+        job_type = str(job_type)
     if result_url:
-        result_url = unicode(result_url)
+        result_url = str(result_url)
     if api_key:
-        api_key = unicode(api_key)
+        api_key = str(api_key)
     if job_key:
-        job_key = unicode(job_key)
-    data = unicode(data)
+        job_key = str(job_key)
+    data = str(data)
 
     if not metadata:
         metadata = {}
@@ -255,16 +255,16 @@ def add_pending_job(job_id, job_key, job_type, api_key,
         # Insert any (key, value) metadata pairs that the job has into the
         # metadata table.
         inserts = []
-        for key, value in metadata.items():
+        for key, value in list(metadata.items()):
             type_ = 'string'
-            if not isinstance(value, basestring):
+            if not isinstance(value, str):
                 value = json.dumps(value)
                 type_ = 'json'
 
             # Turn strings into unicode to stop SQLAlchemy
             # "Unicode type received non-unicode bind param value" warnings.
-            key = unicode(key)
-            value = unicode(value)
+            key = str(key)
+            value = str(value)
 
             inserts.append(
                 {"job_id": job_id,
@@ -311,12 +311,12 @@ def _validate_error(error):
     """
     if error is None:
         return None
-    elif isinstance(error, basestring):
+    elif isinstance(error, str):
         return {"message": error}
     else:
         try:
             message = error["message"]
-            if isinstance(message, basestring):
+            if isinstance(message, str):
                 return error
             else:
                 raise InvalidErrorObjectError(
@@ -341,19 +341,19 @@ def _update_job(job_id, job_dict):
     # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
     # warnings.
     if job_id:
-        job_id = unicode(job_id)
+        job_id = str(job_id)
 
     if "error" in job_dict:
         job_dict["error"] = _validate_error(job_dict["error"])
         job_dict["error"] = json.dumps(job_dict["error"])
         # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
         # warnings.
-        job_dict["error"] = unicode(job_dict["error"])
+        job_dict["error"] = str(job_dict["error"])
 
     # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
     # warnings.
     if "data" in job_dict:
-        job_dict["data"] = unicode(job_dict["data"])
+        job_dict["data"] = str(job_dict["data"])
 
     ENGINE.execute(
         JOBS_TABLE.update()
@@ -500,7 +500,7 @@ def _get_metadata(job_id):
     """Return any metadata for the given job_id from the metadata table."""
     # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
     # warnings.
-    job_id = unicode(job_id)
+    job_id = str(job_id)
 
     results = ENGINE.execute(
         METADATA_TABLE.select().where(
@@ -518,7 +518,7 @@ def _get_logs(job_id, limit=None):
     """Return any logs for the given job_id from the logs table."""
     # Avoid SQLAlchemy "Unicode type received non-unicode bind param value"
     # warnings.
-    job_id = unicode(job_id)
+    job_id = str(job_id)
     try:
         int(limit)
         limit_is_valid = True
@@ -548,17 +548,17 @@ def add_logs(job_id, message=None, level=None,
 
     """
     if job_id:
-        job_id = unicode(job_id)
+        job_id = str(job_id)
     if message:
-        message = unicode(message)
+        message = str(message)
     if level:
-        level = unicode(level)
+        level = str(level)
     if module:
-        module = unicode(module)
+        module = str(module)
     if funcName:
-        funcName = unicode(funcName)
+        funcName = str(funcName)
     if lineno:
-        lineno = unicode(lineno)
+        lineno = str(lineno)
     conn = ENGINE.connect()
     trans = conn.begin()
 

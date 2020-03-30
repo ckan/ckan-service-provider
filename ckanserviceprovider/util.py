@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 import logging
 import datetime
 
-import db
+from . import db
 
 
 class JobError(Exception):
@@ -30,7 +30,7 @@ class JobError(Exception):
         return {"message": self.message}
 
     def __str__(self):
-        return u'{}'.format(self.message) \
+        return '{}'.format(self.message) \
             .encode('ascii', 'replace')
 
 
@@ -47,10 +47,10 @@ class StoringHandler(logging.Handler):
         try:
             # Turn strings into unicode to stop SQLAlchemy
             # "Unicode type received non-unicode bind param value" warnings.
-            message = unicode(record.getMessage())
-            level = unicode(record.levelname)
-            module = unicode(record.module)
-            funcName = unicode(record.funcName)
+            message = str(record.getMessage())
+            level = str(record.levelname)
+            module = str(record.module)
+            funcName = str(record.funcName)
 
             conn.execute(db.LOGS_TABLE.insert().values(
                 job_id=self.task_id,

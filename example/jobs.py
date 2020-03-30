@@ -4,7 +4,7 @@ import ckanserviceprovider.job as job
 import ckanserviceprovider.util as util
 
 
-@job.sync
+@job.synchronous
 def echo(task_id, input):
     if input['data'].startswith('>'):
         raise util.JobError('do not start message with >')
@@ -13,7 +13,7 @@ def echo(task_id, input):
     return '>' + input['data']
 
 
-@job.async
+@job.asynchronous
 def async_echo(task_id, input):
     if input['data'].startswith('>'):
         raise util.JobError('do not start message with >')
@@ -22,7 +22,7 @@ def async_echo(task_id, input):
     return '>' + input['data']
 
 
-@job.async
+@job.asynchronous
 def async_ping(task_id, input):
     handler = util.StoringHandler(task_id, input)
     logger = logging.getLogger(__name__)
