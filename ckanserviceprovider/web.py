@@ -234,7 +234,7 @@ def status():
     :param stats: Shows stats for jobs in queue
     :type stats: dictionary
     '''
-    job_types = list(async_types.keys()) + list(sync_types.keys())
+    job_types = sorted(list(async_types.keys()) + list(sync_types.keys()))
 
     counts = {}
     for job_status in job_statuses:
@@ -631,7 +631,7 @@ def job(job_id=None):
     if job_type not in job_types:
         error_string = (
             'Job type {} not available. Available job types are {}'
-        ).format(job_type, ', '.join(job_types))
+        ).format(job_type, ', '.join(sorted(job_types)))
         return json.dumps({"error": error_string}), 409, headers
 
     api_key = input.get('api_key')

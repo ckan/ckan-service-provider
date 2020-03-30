@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import logging
@@ -211,11 +212,12 @@ class TestWeb(object):
         status_data = json.loads(response.data)
         status_data.pop('stats')
         assert_equal(status_data, dict(version=0.1,
-                                       job_types=['failing',
-                                                  'example',
-                                                  'log',
-                                                  'echo_raw',
-                                                  'echo'],
+                                       job_types=sorted([
+                                           'failing',
+                                           'example',
+                                           'log',
+                                           'echo_raw',
+                                           'echo']),
                                        name='testing'))
 
     def test_content_type(self):
@@ -259,7 +261,7 @@ class TestWeb(object):
         assert_equal(
             json.loads(response.data),
             {u'error': u'Job type moo not available. Available job types are '
-                       'failing, example, log, echo_raw, echo'})
+                       'echo, echo_raw, example, failing, log'})
 
         response = client.post(
             '/job',
@@ -857,7 +859,11 @@ class TestWeb(object):
                              "api_key": 42,
                              "data": "ping"}),
             content_type='application/json')
-        assert response.data == 'ginp'
+
+        if sys.version_info[0] < 3:
+            assert response.data == 'ginp'
+        else:
+            assert response.data == b'ginp'
 
     def test_synchronous_post(self):
         '''Posting a synchronous job should get a JSON response with result.
@@ -911,7 +917,11 @@ class TestWeb(object):
         headers = {'Authorization': job_key}
         response = client.get('/job/echobasic/data', headers=headers)
         assert response.status_code == 200, response.status
-        assert_equal(response.data, u'>ping')
+
+        if sys.version_info[0] < 3:
+            assert_equal(response.data, u'>ping')
+        else:
+            assert_equal(response.data, b'>ping')
         assert 'text/csv' in response.content_type, response.content_type
 
         response = client.post(
