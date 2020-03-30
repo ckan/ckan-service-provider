@@ -643,6 +643,8 @@ class TestWeb(object):
                     })
             finally:
                 event.set()
+            return (200, headers, request.body)
+
         httpretty.register_uri(httpretty.POST, RESULT_URL, body=result_url)
 
         response = client.post(
