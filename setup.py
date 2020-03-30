@@ -32,7 +32,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # http://packaging.python.org/en/latest/tutorial.html#version
-    version='0.0.9',
+    version='0.0.10',
 
     description="A library for making web services that make functions available as synchronous or asynchronous jobs",
     long_description=long_description,
