@@ -26,7 +26,7 @@ def main():
         epilog='''"For a moment, nothing happened.
             Then, after a second or so, nothing continued to happen."''')
 
-    argparser.add_argument('config', metavar='CONFIG', type=file,
+    argparser.add_argument('config', metavar='CONFIG', type=argparse.FileType("r"),
                            help='configuration file')
     args = argparser.parse_args()
 
