@@ -3,10 +3,12 @@
 
 import logging
 import datetime
+from future.utils import python_2_unicode_compatible
 
 from . import db
 
 
+@python_2_unicode_compatible
 class JobError(Exception):
     """The exception type that jobs raise to signal failure."""
 
@@ -30,8 +32,7 @@ class JobError(Exception):
         return {"message": self.message}
 
     def __str__(self):
-        return '{}'.format(self.message) \
-            .encode('ascii', 'replace')
+        return self.message
 
 
 class StoringHandler(logging.Handler):
