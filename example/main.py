@@ -9,12 +9,12 @@ assert(jobs.echo)
 
 
 def serve():
-    web.configure()
+    web.init()
     web.app.run(web.app.config.get('HOST'), web.app.config.get('PORT'))
 
 
 def serve_test():
-    web.configure()
+    web.init()
     return web.app.test_client()
 
 
@@ -26,7 +26,7 @@ def main():
         epilog='''"For a moment, nothing happened.
             Then, after a second or so, nothing continued to happen."''')
 
-    argparser.add_argument('config', metavar='CONFIG', type=file,
+    argparser.add_argument('config', metavar='CONFIG', type=argparse.FileType("r"),
                            help='configuration file')
     args = argparser.parse_args()
 
