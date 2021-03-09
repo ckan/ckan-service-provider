@@ -16,6 +16,7 @@ install_requires = [
     'SQLAlchemy>=1.3.15,<1.4.0',
     'requests>=2.23.0',
     'flask-login>=0.5.0,<0.6.0',
+    'future',
 ]
 
 if sys.version_info[0] < 3:
