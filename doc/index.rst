@@ -25,7 +25,7 @@ Just decorate your function and it will become available as a job::
   import ckanserviceprovider.job as job
   import ckanserviceprovider.util as util
 
-  @job.sync
+  @job.synchronous
   def echo(task_id, input):
       handler = util.StoringHandler(task_id, input)
       logger = logging.getLogger(__name__)
