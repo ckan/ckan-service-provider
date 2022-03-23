@@ -96,7 +96,7 @@ def _configure_logger_for_production(logger):
     """
     stderr_handler = logging.StreamHandler(sys.stderr)
     stderr_handler.setLevel(logging.INFO)
-    if 'STDERR' in app.config:
+    if 'STDERR' in app.config and app.config['STDERR']:
         logger.addHandler(stderr_handler)
 
     file_handler = logging.handlers.RotatingFileHandler(

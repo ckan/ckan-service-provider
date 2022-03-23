@@ -6,6 +6,8 @@ SECRET_KEY = 'please_replace_me'
 USERNAME = 'admin'
 PASSWORD = 'pass'
 
+STDERR = True
+
 # database
 
 SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite://')
