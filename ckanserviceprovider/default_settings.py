@@ -6,8 +6,6 @@ SECRET_KEY = 'please_replace_me'
 USERNAME = 'admin'
 PASSWORD = 'pass'
 
-STDERR = True
-
 # database
 
 SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite://')
@@ -21,6 +19,7 @@ PORT = 8000
 # logging
 
 LOG_FILE = '/tmp/ckan_service.log'
+STDERR = True
 
 # project configuration
 NAME = 'service'
