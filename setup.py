@@ -27,12 +27,12 @@ if sys.version_info[0] < 3:
         ]
     )
 else:
-    install_requires.extend(
-        [
-            "Werkzeug>=1.0.0",
-            "flask-login==0.6.0",
-        ]
-    )
+    if sys.version_info[1] <= 6:
+        install_requires.append("flask-login==0.5.0")
+    else:
+        install_requires.append("flask-login==0.6.0")
+
+    install_requires.append("Werkzeug>=1.0.0")
 
 setup(
     name="ckanserviceprovider",
