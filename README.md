@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.org/ckan/ckan-service-provider.png?branch=master)](https://travis-ci.org/ckan/ckan-service-provider)
-[![Coverage Status](https://coveralls.io/repos/ckan/ckan-service-provider/badge.png?branch=master)](https://coveralls.io/r/ckan/ckan-service-provider?branch=master)
+[![Tests](https://github.com/ckan/ckan-service-provider/actions/workflows/test.yml/badge.svg)](https://github.com/ckan/ckan-service-provider/actions/workflows/test.yml)
 [![Latest Version](https://img.shields.io/pypi/v/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
 [![Downloads](https://img.shields.io/pypi/dm/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/ckanserviceprovider.svg)](https://pypi.python.org/pypi/ckanserviceprovider/)
