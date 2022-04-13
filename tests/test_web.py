@@ -233,10 +233,15 @@ class TestWeb(object):
         '''Invalid posts to /job should receive error messages in JSON.'''
         client = test_client()
         response = client.post('/job', data='{"ffsfsafsa":"moo"}')
-        assert_equal(
-            json.loads(response.data),
-            {u'error': u'Not recognised as json, make sure content type is '
-                       'application/json'})
+        try:
+            assert_equal(
+                json.loads(response.data),
+                {u'error': u'Not recognised as json, make sure content type is '
+                           'application/json'})
+        except AssertionError:
+            assert_equal(
+                json.loads(response.data),
+                {u'error': u'Malformed json'})
 
         response = client.post(
             '/job',
