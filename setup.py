@@ -15,7 +15,6 @@ install_requires = [
     "Flask>=1.1.1",
     "SQLAlchemy>=1.3.15,<1.4.0",
     "requests>=2.23.0",
-    "flask-login==0.6.0",
     "future",
 ]
 
@@ -24,10 +23,16 @@ if sys.version_info[0] < 3:
         [
             "Werkzeug>=0.16.1,<1.0.0",
             "Jinja2<3.0.0",
+            "flask-login==0.5.0",
         ]
     )
 else:
-    install_requires.append("Werkzeug>=1.0.0")
+    install_requires.extend(
+        [
+            "Werkzeug>=1.0.0",
+            "flask-login==0.6.0",
+        ]
+    )
 
 setup(
     name="ckanserviceprovider",
