@@ -11,11 +11,10 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 install_requires = [
-    "APScheduler>=2.1.2,<3.0.0",
+    "APScheduler>=2.1.2,<4",
     "Flask>=1.1.1",
     "SQLAlchemy>=1.3.15,<1.4.0",
     "requests>=2.23.0",
-    "flask-login==0.6.0",
     "future",
 ]
 
@@ -24,9 +23,15 @@ if sys.version_info[0] < 3:
         [
             "Werkzeug>=0.16.1,<1.0.0",
             "Jinja2<3.0.0",
+            "flask-login==0.5.0",
         ]
     )
 else:
+    if sys.version_info[1] <= 6:
+        install_requires.append("flask-login==0.5.0")
+    else:
+        install_requires.append("flask-login==0.6.0")
+
     install_requires.append("Werkzeug>=1.0.0")
 
 setup(
@@ -57,6 +62,8 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     # What does your project relate to?
     keywords="ckan",

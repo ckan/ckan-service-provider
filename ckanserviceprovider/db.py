@@ -95,7 +95,7 @@ def drop_all():
         _METADATA.drop_all(ENGINE)
 
 
-def get_job(job_id, limit=None):
+def get_job(job_id, limit=None, use_aps_id=False):
     """Return the job with the given job_id as a dict.
 
     The dict also includes any metadata or logs associated with the job.
@@ -154,9 +154,14 @@ def get_job(job_id, limit=None):
     if job_id:
         job_id = str(job_id)
 
-    result = ENGINE.execute(
-        JOBS_TABLE.select().where(JOBS_TABLE.c.job_id == job_id)
-    ).first()
+    if use_aps_id:
+        result = ENGINE.execute(
+            JOBS_TABLE.select().where(JOBS_TABLE.c.aps_job_id == job_id)
+        ).first()
+    else:
+        result = ENGINE.execute(
+            JOBS_TABLE.select().where(JOBS_TABLE.c.job_id == job_id)
+        ).first()
 
     if not result:
         return None
@@ -443,6 +448,11 @@ def delete_api_key(job_id):
     _update_job(job_id, {"api_key": None})
 
 
+def set_aps_job_id(job_id, aps_job_id):
+
+    _update_job(job_id, {"aps_job_id": aps_job_id})
+
+
 def _init_jobs_table():
     """Initialise the "jobs" table in the db."""
     _jobs_table = sqlalchemy.Table(
@@ -456,6 +466,7 @@ def _init_jobs_table():
         sqlalchemy.Column("requested_timestamp", sqlalchemy.DateTime),
         sqlalchemy.Column("finished_timestamp", sqlalchemy.DateTime),
         sqlalchemy.Column("sent_data", sqlalchemy.UnicodeText),
+        sqlalchemy.Column("aps_job_id", sqlalchemy.UnicodeText),
         # Callback URL:
         sqlalchemy.Column("result_url", sqlalchemy.UnicodeText),
         # CKAN API key:
