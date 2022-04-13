@@ -19,6 +19,7 @@ PORT = 8000
 # logging
 
 LOG_FILE = '/tmp/ckan_service.log'
+STDERR = True
 
 # project configuration
 NAME = 'service'

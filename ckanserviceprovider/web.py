@@ -96,13 +96,13 @@ def _configure_logger_for_production(logger):
     """
     stderr_handler = logging.StreamHandler(sys.stderr)
     stderr_handler.setLevel(logging.INFO)
-    if 'STDERR' in app.config:
+    if 'STDERR' in app.config and app.config['STDERR']:
         logger.addHandler(stderr_handler)
 
-    file_handler = logging.handlers.RotatingFileHandler(
-        app.config.get('LOG_FILE'), maxBytes=67108864, backupCount=5)
-    file_handler.setLevel(logging.INFO)
-    if 'LOG_FILE' in app.config:
+    if 'LOG_FILE' in app.config and app.config['LOG_FILE']:
+        file_handler = logging.handlers.RotatingFileHandler(
+            app.config.get('LOG_FILE'), maxBytes=67108864, backupCount=5)
+        file_handler.setLevel(logging.INFO)
         logger.addHandler(file_handler)
 
     mail_handler = logging.handlers.SMTPHandler(
