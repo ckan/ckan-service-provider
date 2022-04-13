@@ -20,7 +20,7 @@ jobs:
         if: ${{ matrix.python-version != '2.7' }}
         run: pip install -r requirements-dev.txt && pip install .
       - name: Run tests
-        run: pytest --cov=ckanext.sitesearch --cov-append --cov-report=xml --disable-warnings tests
+        run: pytest --cov=ckanserviceprovider --cov-append --cov-report=xml --disable-warnings tests
       - name: Upload coverage report to codecov
         uses: codecov/codecov-action@v1
         with:
