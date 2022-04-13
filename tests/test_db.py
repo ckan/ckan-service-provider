@@ -10,11 +10,10 @@ def test_validate_error_with_none():
 
 
 def test_validate_error_with_string():
-    """If given a string _validate_error() should return it wrapped in a dict.
-
-    """
+    """If given a string _validate_error() should return it wrapped in a dict."""
     assert db._validate_error("Something went wrong") == {
-        "message": "Something went wrong"}
+        "message": "Something went wrong"
+    }
 
 
 def test_validate_error_with_valid_dict():
@@ -24,9 +23,7 @@ def test_validate_error_with_valid_dict():
 
 
 def test_validate_error_with_dict_with_invalid_error():
-    """_validate_error() should raise if given a dict with an invalid message.
-
-    """
+    """_validate_error() should raise if given a dict with an invalid message."""
     job_dict = {"message": 42}  # Error message is invalid: it's not a string.
     with pytest.raises(db.InvalidErrorObjectError):
         db._validate_error(job_dict)

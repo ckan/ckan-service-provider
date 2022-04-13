@@ -36,8 +36,9 @@ class JobError(Exception):
 
 
 class StoringHandler(logging.Handler):
-    '''A handler that stores the logging records
-    in the database.'''
+    """A handler that stores the logging records
+    in the database."""
+
     def __init__(self, task_id, input):
         logging.Handler.__init__(self)
         self.task_id = task_id
@@ -53,13 +54,16 @@ class StoringHandler(logging.Handler):
             module = str(record.module)
             funcName = str(record.funcName)
 
-            conn.execute(db.LOGS_TABLE.insert().values(
-                job_id=self.task_id,
-                timestamp=datetime.datetime.now(),
-                message=message,
-                level=level,
-                module=module,
-                funcName=funcName,
-                lineno=record.lineno))
+            conn.execute(
+                db.LOGS_TABLE.insert().values(
+                    job_id=self.task_id,
+                    timestamp=datetime.datetime.now(),
+                    message=message,
+                    level=level,
+                    module=module,
+                    funcName=funcName,
+                    lineno=record.lineno,
+                )
+            )
         finally:
             conn.close()

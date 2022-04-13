@@ -2,7 +2,8 @@
 
 from ckanserviceprovider.util import JobError
 
+
 def test_joberror():
-    err = JobError(u'oh no ❌')
-    assert err.message == u'oh no ❌'
-    assert str(err) == 'oh no ❌'
+    err = JobError("oh no ❌")
+    assert err.message == "oh no ❌"
+    assert str(err) == "oh no ❌"
