@@ -7,7 +7,7 @@ import uuid
 import threading
 
 import httpretty
-from nose.tools import assert_equal
+import pytest
 
 import ckanserviceprovider.web as web
 import ckanserviceprovider.job as job
@@ -176,7 +176,7 @@ def log(task_id, input_):
     logger = logging.Logger(task_id)
     logger.addHandler(handler)
 
-    logger.warn('Just a warning')
+    logger.warning('Just a warning')
 
 
 class TestWeb(object):
@@ -213,7 +213,7 @@ class TestWeb(object):
         response = client.get('/status')
         status_data = json.loads(response.data)
         status_data.pop('stats')
-        assert_equal(status_data, dict(version=0.1,
+        assert (status_data == dict(version=0.1,
                                        job_types=sorted([
                                            'failing',
                                            'example',
@@ -227,27 +227,27 @@ class TestWeb(object):
         client = test_client()
         for page in ['/job', '/status', '/job/foo']:
             response = client.get(page)
-            assert_equal(response.content_type, 'application/json')
+            assert (response.content_type == 'application/json')
 
     def test_bad_post(self):
         '''Invalid posts to /job should receive error messages in JSON.'''
         client = test_client()
         response = client.post('/job', data='{"ffsfsafsa":"moo"}')
         try:
-            assert_equal(
-                json.loads(response.data),
+            assert (
+                json.loads(response.data) ==
                 {u'error': u'Not recognised as json, make sure content type is '
                            'application/json'})
         except AssertionError:
-            assert_equal(
-                json.loads(response.data),
+            assert (
+                json.loads(response.data) ==
                 {u'error': u'Malformed json'})
 
         response = client.post(
             '/job',
             data='{"ffsfsafsa":moo}',
             content_type='application/json')
-        assert_equal(json.loads(response.data), {u'error': u'Malformed json'})
+        assert (json.loads(response.data) == {u'error': u'Malformed json'})
 
         response = client.post(
             '/job',
@@ -255,8 +255,8 @@ class TestWeb(object):
                 "api_key": 42,
                 "data": {"time": 5}}),
             content_type='application/json')
-        assert_equal(
-            json.loads(response.data),
+        assert (
+            json.loads(response.data) ==
             {u'error': u'Please specify a job type'})
 
         response = client.post(
@@ -265,8 +265,8 @@ class TestWeb(object):
                              "api_key": 42,
                              "data": {"time": 5}}),
             content_type='application/json')
-        assert_equal(
-            json.loads(response.data),
+        assert (
+            json.loads(response.data) ==
             {u'error': u'Job type moo not available. Available job types are '
                        'echo, echo_raw, example, failing, log'})
 
@@ -274,8 +274,8 @@ class TestWeb(object):
             '/job',
             data=json.dumps({"job_type": "example", "data": {"time": 5}}),
             content_type='application/json')
-        assert_equal(
-            json.loads(response.data),
+        assert (
+            json.loads(response.data) ==
             {u'error': u'Please provide your API key.'})
 
         response = client.post(
@@ -285,8 +285,8 @@ class TestWeb(object):
                              "data": {"time": 5},
                              "foo": 42}),
             content_type='application/json')
-        assert_equal(
-            json.loads(response.data),
+        assert (
+            json.loads(response.data) ==
             {u'error': u'Too many arguments. Extra keys are foo'})
 
     def test_asynchronous_post_with_good_job(self):
@@ -317,7 +317,7 @@ class TestWeb(object):
             return (200, headers, "")
         httpretty.register_uri(httpretty.POST, RESULT_URL, body=callback)
 
-        response = client.post(
+        client.post(
             '/job',
             data=json.dumps(
                 {"job_type": "example",
@@ -637,8 +637,8 @@ class TestWeb(object):
                 data.pop('requested_timestamp')
                 data.pop('finished_timestamp')
                 data.pop('job_key')
-                assert_equal(
-                    data,
+                assert (
+                    data ==
                     {
                         "status": "complete",
                         "sent_data": {"time": 0.1},
@@ -835,8 +835,8 @@ class TestWeb(object):
         job_status_data = json.loads(response.data)
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
-        assert_equal(
-            job_status_data,
+        assert (
+            job_status_data ==
             {u'status': u'error',
              u'sent_data': {u'time': 0.1},
              u'job_id': u'misfire',
@@ -899,8 +899,8 @@ class TestWeb(object):
         job_ = db.get_job(return_data['job_id'])
         assert not job_['api_key'], job_
 
-        assert_equal(
-            return_data,
+        assert (
+            return_data ==
             {u'status': u'complete',
              u'sent_data': u'ping',
              u'job_id': u'echobasic',
@@ -919,16 +919,16 @@ class TestWeb(object):
         job_status_data.pop('requested_timestamp')
         job_status_data.pop('finished_timestamp')
 
-        assert_equal(return_data, job_status_data)
+        assert (return_data == job_status_data)
 
         headers = {'Authorization': job_key}
         response = client.get('/job/echobasic/data', headers=headers)
         assert response.status_code == 200, response.status
 
         if sys.version_info[0] < 3:
-            assert_equal(response.data, u'>ping')
+            assert (response.data == u'>ping')
         else:
-            assert_equal(response.data, b'>ping')
+            assert (response.data == b'>ping')
         assert 'text/csv' in response.content_type, response.content_type
 
         response = client.post(
@@ -939,8 +939,8 @@ class TestWeb(object):
             content_type='application/json')
 
         return_data = json.loads(response.data)
-        assert_equal(
-            return_data, {u'error': u'job_id echobasic already exists'})
+        assert (
+            return_data == {u'error': u'job_id echobasic already exists'})
 
         response = client.post(
             '/job/echoknownbad',
@@ -953,8 +953,8 @@ class TestWeb(object):
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         return_data.pop('job_key')
-        assert_equal(
-            return_data,
+        assert (
+            return_data ==
             {u'status': u'error',
              u'sent_data': u'>ping',
              u'job_id': u'echoknownbad',
@@ -985,8 +985,8 @@ class TestWeb(object):
         return_data.pop('requested_timestamp')
         return_data.pop('finished_timestamp')
         return_data.pop('job_key')
-        assert_equal(
-            return_data,
+        assert (
+            return_data ==
             {u'status': u'complete',
              u'sent_data': u'moo',
              u'job_id': u'echobad_url',
@@ -1038,7 +1038,7 @@ class TestWeb(object):
         log_ = logs[0]
         log_.pop('timestamp')
         log_.pop('lineno')
-        assert_equal(log_, {
+        assert (log_== {
             u'level': u'WARNING',
             u'module': u'test_web',
             u'funcName': u'log',

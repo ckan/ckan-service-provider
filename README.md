@@ -38,7 +38,7 @@ For a real-world example have a look at [DataPusher][].
 To run the ckanserviceprovider tests:
 
 ```bash
-nosetests
+pytest
 ```
 
 

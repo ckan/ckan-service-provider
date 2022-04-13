@@ -1,5 +1,5 @@
 """Unit tests for ckanserviceprovider/db.py."""
-import nose.tools
+import pytest
 
 import ckanserviceprovider.db as db
 
@@ -28,15 +28,15 @@ def test_validate_error_with_dict_with_invalid_error():
 
     """
     job_dict = {"message": 42}  # Error message is invalid: it's not a string.
-    nose.tools.assert_raises(
-        db.InvalidErrorObjectError, db._validate_error, job_dict)
+    with pytest.raises(db.InvalidErrorObjectError):
+        db._validate_error(job_dict)
 
 
 def test_validate_error_with_dict_with_no_error_key():
     """_validate_error() should raise if given a dict with no "message" key."""
     job_dict = {"foo": "bar"}
-    nose.tools.assert_raises(
-        db.InvalidErrorObjectError, db._validate_error, job_dict)
+    with pytest.raises(db.InvalidErrorObjectError):
+        db._validate_error(job_dict)
 
 
 def test_validate_error_with_random_object():
@@ -48,5 +48,5 @@ def test_validate_error_with_random_object():
     # An error object that is not None and is not string- or dict-like at all.
     error_obj = Foo()
 
-    nose.tools.assert_raises(
-        db.InvalidErrorObjectError, db._validate_error, error_obj)
+    with pytest.raises(db.InvalidErrorObjectError):
+        db._validate_error(error_obj)
