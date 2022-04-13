@@ -12,9 +12,10 @@ import logging.handlers
 import flask
 import flask_login as flogin
 import werkzeug
-import apscheduler.scheduler as apscheduler
+from apscheduler.schedulers.background import BackgroundScheduler as Scheduler
 import apscheduler.events as events
-import apscheduler.jobstores.sqlalchemy_store as sqlalchemy_store
+import apscheduler.jobstores.sqlalchemy as sqlalchemy_store
+from apscheduler.triggers.date import DateTrigger
 import sqlalchemy.sql as sql
 import sqlalchemy as sa
 import requests
@@ -134,7 +135,7 @@ def _configure_logger():
 def init_scheduler(db_uri):
     """Initialise and configure the scheduler."""
     global scheduler
-    scheduler = apscheduler.Scheduler()
+    scheduler = Scheduler()
     scheduler.misfire_grace_time = 3600
     scheduler.add_jobstore(sqlalchemy_store.SQLAlchemyJobStore(url=db_uri), "default")
     scheduler.add_listener(
@@ -179,7 +180,10 @@ class RunNowTrigger(object):
 
 def job_listener(event):
     """Listens to completed job"""
-    job_id = event.job.args[0]
+    aps_job_id = event.job_id
+
+    job = db.get_job(aps_job_id, use_aps_id=True)
+    job_id = job['job_id']
 
     if event.code == events.EVENT_JOB_MISSED:
         db.mark_job_as_missed(job_id)
@@ -188,12 +192,11 @@ def job_listener(event):
             error_object = event.exception.as_dict()
         else:
             error_object = "\n".join(
-                traceback.format_tb(event.traceback) + [repr(event.exception)]
+                [event.traceback] + [repr(event.exception)]
             )
         db.mark_job_as_errored(job_id, error_object)
     else:
         db.mark_job_as_completed(job_id, event.retval)
-
     api_key = db.get_job(job_id)["api_key"]
     result_ok = send_result(job_id, api_key)
 
@@ -721,8 +724,10 @@ def run_asynchronous_job(job, job_id, job_key, input):
     except sa.exc.IntegrityError:
         error_string = "job_id {} already exists".format(job_id)
         return json.dumps({"error": error_string}), 409, headers
+    trigger = DateTrigger()
+    aps_job = scheduler.add_job(job, trigger, [job_id, input], None)
 
-    scheduler.add_job(RunNowTrigger(), job, [job_id, input], None)
+    db.set_aps_job_id(job_id, aps_job.id)
 
     return job_status(job_id=job_id, show_job_key=True, ignore_auth=True)
 
