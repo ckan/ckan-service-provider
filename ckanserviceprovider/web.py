@@ -37,7 +37,7 @@ _names = None
 SSL_VERIFY = None
 
 
-def init(db_uri=app.config.get("SQLALCHEMY_DATABASE_URI")):
+def init():
     """Initialise and configure the app, database, scheduler, etc.
 
     This should be called once at application startup or at tests startup
@@ -48,8 +48,8 @@ def init(db_uri=app.config.get("SQLALCHEMY_DATABASE_URI")):
     _configure_app(app)
     _users, _names = _init_login_manager(app)
     _configure_logger()
-    init_scheduler(db_uri)
-    db.init(db_uri)
+    init_scheduler(app.config.get("SQLALCHEMY_DATABASE_URI"))
+    db.init(app.config.get("SQLALCHEMY_DATABASE_URI"))
 
 
 def _configure_app(app_):
