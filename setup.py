@@ -11,7 +11,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 install_requires = [
-    "APScheduler>=2.1.2,<4",
+    "APScheduler>=2.1.2,<3.10.0",
     "Flask>=1.1.1",
     "SQLAlchemy>=1.4.0,<=1.4.41",
     "requests>=2.23.0",
