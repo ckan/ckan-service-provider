@@ -98,7 +98,9 @@ def _configure_logger_for_production(logger):
     """
     stderr_handler = logging.StreamHandler(sys.stderr)
     stderr_handler.setLevel(logging.INFO)
+    ts_formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     if "STDERR" in app.config and app.config["STDERR"]:
+        stderr_handler.setFormatter(ts_formatter)
         logger.addHandler(stderr_handler)
 
     if "LOG_FILE" in app.config and app.config["LOG_FILE"]:
@@ -106,6 +108,7 @@ def _configure_logger_for_production(logger):
             app.config.get("LOG_FILE"), maxBytes=67108864, backupCount=5
         )
         file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(ts_formatter)
         logger.addHandler(file_handler)
 
     mail_handler = logging.handlers.SMTPHandler(
