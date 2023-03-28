@@ -3,6 +3,6 @@ APScheduler==3.9.1.post1
 requests==2.27.1
 Flask==2.1.1
 # install flask-login 0.6 for new python version
-Flask-Login==0.5.0; python_version < '2.7'
-Flask-Login==0.6.0; python_version >= '2.7'
+Flask-Login==0.5.0; python_version < '3.7'
+Flask-Login==0.6.0; python_version >= '3.7'
 future==0.18.3
