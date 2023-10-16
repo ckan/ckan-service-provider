@@ -13,6 +13,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 install_requires = [
     "APScheduler>=2.1.2,<3.10.0",
     "Flask>=1.1.1,<3.0.0",
+    "Werkzeug>=1.0.0,<3.0.0",
     "SQLAlchemy>=1.3.15,<1.4.0",
     "requests>=2.23.0",
     "future",
