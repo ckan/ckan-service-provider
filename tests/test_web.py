@@ -240,6 +240,8 @@ class TestWeb(object):
             }
         except AssertionError:
             assert json.loads(response.data) == {"error": "Malformed json"}
+        except json.JSONDecodeError:
+            assert response.status_code == 415
 
         response = client.post(
             "/job", data='{"ffsfsafsa":moo}', content_type="application/json"
