@@ -18,28 +18,18 @@ install_requires = [
     "future",
 ]
 
-if sys.version_info[0] < 3:
-    install_requires.extend(
-        [
-            "Werkzeug>=0.16.1,<1.0.0",
-            "Jinja2<3.0.0",
-            "flask-login==0.5.0",
-        ]
-    )
+if sys.version_info[1] <= 6:
+    install_requires.append("flask-login==0.5.0")
 else:
-    if sys.version_info[1] <= 6:
-        install_requires.append("flask-login==0.5.0")
-    else:
-        install_requires.append("flask-login==0.6.2")
+    install_requires.append("flask-login==0.6.2")
 
-    install_requires.append("Werkzeug>=1.0.0,<3.0.0")
 
 setup(
     name="ckanserviceprovider",
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # http://packaging.python.org/en/latest/tutorial.html#version
-    version="1.1.0",
+    version="1.2.0",
     description="A library for making web services that make functions available as synchronous or asynchronous jobs",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -58,8 +48,6 @@ setup(
         "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
